@@ -130,7 +130,7 @@
 
 ### Tests for User Story 4
 
-- [ ] T031 [P] [US4] Write integration test for graceful shutdown in tests/integration/monitor_test.go
+- [x] T031 [P] [US4] Write integration test for graceful shutdown in tests/unit/shutdown_test.go
 
 ### Implementation for User Story 4
 
@@ -148,7 +148,7 @@
 
 **Purpose**: Final integration, documentation, and validation
 
-- [ ] T037 [P] Write end-to-end integration test in tests/integration/monitor_test.go
+- [x] T037 [P] Write end-to-end integration test in tests/unit/monitor_test.go
 - [ ] T038 Validate quickstart.md scenarios work correctly
 - [ ] T039 [P] Update README.md with build and usage instructions
 - [ ] T040 Run full test suite and verify CI passes

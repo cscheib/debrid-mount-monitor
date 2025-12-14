@@ -67,12 +67,13 @@ internal/
     └── monitor.go       # Main monitoring loop, orchestration
 
 tests/
-├── integration/
-│   └── monitor_test.go  # End-to-end monitoring tests
 └── unit/
-    ├── checker_test.go  # Health check unit tests
-    ├── state_test.go    # State management unit tests
-    └── config_test.go   # Configuration parsing tests
+    ├── checker_test.go   # Health check unit tests
+    ├── config_test.go    # Configuration parsing tests
+    ├── monitor_test.go   # Monitor integration tests
+    ├── server_test.go    # HTTP endpoint tests
+    ├── shutdown_test.go  # Graceful shutdown tests
+    └── state_test.go     # State management unit tests
 
 build/
 ├── Dockerfile           # Multi-stage build, scratch base
