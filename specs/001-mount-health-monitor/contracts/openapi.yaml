@@ -1,0 +1,179 @@
+openapi: 3.0.3
+info:
+  title: Mount Health Monitor API
+  description: |
+    Kubernetes health probe endpoints for the debrid mount health monitor sidecar.
+
+    This API exposes two probe endpoints:
+    - **Liveness probe** (`/healthz/live`): Returns success if the service is running and mounts
+      are not in a confirmed unhealthy state. Used by Kubernetes to determine if the pod should
+      be restarted.
+    - **Readiness probe** (`/healthz/ready`): Returns success only if all mounts are healthy.
+      Used by Kubernetes to determine if the pod should receive traffic.
+  version: 1.0.0
+  contact:
+    name: Mount Health Monitor
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /healthz/live:
+    get:
+      summary: Kubernetes liveness probe
+      description: |
+        Returns HTTP 200 if the service is alive and mounts have not exceeded the debounce
+        threshold for unhealthy state. Returns HTTP 503 if any mount is confirmed unhealthy
+        (past debounce threshold), signaling Kubernetes to restart the pod.
+
+        **Behavior**:
+        - HEALTHY mounts: 200
+        - DEGRADED mounts (within debounce threshold): 200
+        - UNHEALTHY mounts (past debounce threshold): 503
+        - UNKNOWN mounts (no check yet): 200 (grace period)
+      operationId: getLivenessProbe
+      tags:
+        - Probes
+      responses:
+        '200':
+          description: Service is alive, mounts are not confirmed unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeResponse'
+              example:
+                status: healthy
+                timestamp: "2025-12-14T10:30:00Z"
+                mounts:
+                  - path: /mnt/debrid
+                    status: healthy
+                    last_check: "2025-12-14T10:29:55Z"
+                    failure_count: 0
+        '503':
+          description: Service unhealthy - mount failure confirmed past debounce threshold
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeResponse'
+              example:
+                status: unhealthy
+                timestamp: "2025-12-14T10:30:00Z"
+                mounts:
+                  - path: /mnt/debrid
+                    status: unhealthy
+                    last_check: "2025-12-14T10:29:55Z"
+                    failure_count: 3
+                    error: "read timeout: context deadline exceeded"
+
+  /healthz/ready:
+    get:
+      summary: Kubernetes readiness probe
+      description: |
+        Returns HTTP 200 only if ALL mounts are confirmed healthy. Returns HTTP 503 if any
+        mount is not in a healthy state, preventing Kubernetes from routing traffic to the pod.
+
+        **Behavior**:
+        - All HEALTHY mounts: 200
+        - Any DEGRADED mount: 503
+        - Any UNHEALTHY mount: 503
+        - Any UNKNOWN mount: 503
+
+        This is more strict than the liveness probe because we want to prevent traffic
+        routing during any degraded state, not just confirmed failures.
+      operationId: getReadinessProbe
+      tags:
+        - Probes
+      responses:
+        '200':
+          description: All mounts are healthy, pod is ready to receive traffic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeResponse'
+              example:
+                status: healthy
+                timestamp: "2025-12-14T10:30:00Z"
+                mounts:
+                  - path: /mnt/debrid
+                    status: healthy
+                    last_check: "2025-12-14T10:29:55Z"
+                    failure_count: 0
+        '503':
+          description: One or more mounts are not healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeResponse'
+              example:
+                status: unhealthy
+                timestamp: "2025-12-14T10:30:00Z"
+                mounts:
+                  - path: /mnt/debrid
+                    status: degraded
+                    last_check: "2025-12-14T10:29:55Z"
+                    failure_count: 1
+                    error: "open /mnt/debrid/.health-check: no such file or directory"
+
+components:
+  schemas:
+    ProbeResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - mounts
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Aggregate health status across all mounts
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of the probe response
+        mounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/MountStatus'
+          description: Health status of each configured mount
+
+    MountStatus:
+      type: object
+      required:
+        - path
+        - status
+        - last_check
+        - failure_count
+      properties:
+        path:
+          type: string
+          description: Filesystem path being monitored
+          example: /mnt/debrid
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy, unknown]
+          description: |
+            Current health status:
+            - healthy: Mount is accessible
+            - degraded: Mount has failed but within debounce threshold
+            - unhealthy: Mount has failed past debounce threshold
+            - unknown: No health check has been performed yet
+        last_check:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of the last health check
+        failure_count:
+          type: integer
+          minimum: 0
+          description: Number of consecutive failures (0 if healthy)
+        error:
+          type: string
+          description: Last error message if the mount is not healthy
+          example: "read timeout: context deadline exceeded"
+
+tags:
+  - name: Probes
+    description: Kubernetes health probe endpoints
