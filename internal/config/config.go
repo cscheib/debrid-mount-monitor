@@ -1,0 +1,204 @@
+// Package config handles configuration parsing from environment variables and flags.
+package config
+
+import (
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// Config holds all runtime configuration for the mount monitor.
+type Config struct {
+	// Mount configuration
+	MountPaths []string // Paths to monitor
+	CanaryFile string   // Relative path to canary file within each mount
+
+	// Timing configuration
+	CheckInterval   time.Duration // Time between health checks
+	ReadTimeout     time.Duration // Timeout for canary file read
+	ShutdownTimeout time.Duration // Max time for graceful shutdown
+
+	// Debounce configuration
+	DebounceThreshold int // Consecutive failures before unhealthy
+
+	// Server configuration
+	HTTPPort int // Port for health endpoints
+
+	// Logging configuration
+	LogLevel  string // debug, info, warn, error
+	LogFormat string // json, text
+}
+
+// DefaultConfig returns a Config with sensible defaults.
+func DefaultConfig() *Config {
+	return &Config{
+		MountPaths:        []string{},
+		CanaryFile:        ".health-check",
+		CheckInterval:     30 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		ShutdownTimeout:   30 * time.Second,
+		DebounceThreshold: 3,
+		HTTPPort:          8080,
+		LogLevel:          "info",
+		LogFormat:         "json",
+	}
+}
+
+// Load parses configuration from environment variables and command-line flags.
+// Flags take precedence over environment variables.
+func Load() (*Config, error) {
+	cfg := DefaultConfig()
+
+	// Define flags
+	mountPaths := flag.String("mount-paths", "", "Comma-separated list of mount paths to monitor")
+	canaryFile := flag.String("canary-file", "", "Relative path to canary file within each mount")
+	checkInterval := flag.Duration("check-interval", 0, "Time between health checks")
+	readTimeout := flag.Duration("read-timeout", 0, "Timeout for canary file read")
+	shutdownTimeout := flag.Duration("shutdown-timeout", 0, "Max time for graceful shutdown")
+	debounceThreshold := flag.Int("debounce-threshold", 0, "Consecutive failures before unhealthy")
+	httpPort := flag.Int("http-port", 0, "Port for health endpoints")
+	logLevel := flag.String("log-level", "", "Log level: debug, info, warn, error")
+	logFormat := flag.String("log-format", "", "Log format: json, text")
+
+	flag.Parse()
+
+	// Load from environment variables first
+	if envVal := os.Getenv("MOUNT_PATHS"); envVal != "" {
+		cfg.MountPaths = parseMountPaths(envVal)
+	}
+	if envVal := os.Getenv("CANARY_FILE"); envVal != "" {
+		cfg.CanaryFile = envVal
+	}
+	if envVal := os.Getenv("CHECK_INTERVAL"); envVal != "" {
+		if d, err := time.ParseDuration(envVal); err == nil {
+			cfg.CheckInterval = d
+		}
+	}
+	if envVal := os.Getenv("READ_TIMEOUT"); envVal != "" {
+		if d, err := time.ParseDuration(envVal); err == nil {
+			cfg.ReadTimeout = d
+		}
+	}
+	if envVal := os.Getenv("SHUTDOWN_TIMEOUT"); envVal != "" {
+		if d, err := time.ParseDuration(envVal); err == nil {
+			cfg.ShutdownTimeout = d
+		}
+	}
+	if envVal := os.Getenv("DEBOUNCE_THRESHOLD"); envVal != "" {
+		if i, err := strconv.Atoi(envVal); err == nil {
+			cfg.DebounceThreshold = i
+		}
+	}
+	if envVal := os.Getenv("HTTP_PORT"); envVal != "" {
+		if i, err := strconv.Atoi(envVal); err == nil {
+			cfg.HTTPPort = i
+		}
+	}
+	if envVal := os.Getenv("LOG_LEVEL"); envVal != "" {
+		cfg.LogLevel = envVal
+	}
+	if envVal := os.Getenv("LOG_FORMAT"); envVal != "" {
+		cfg.LogFormat = envVal
+	}
+
+	// Override with flags if provided
+	if *mountPaths != "" {
+		cfg.MountPaths = parseMountPaths(*mountPaths)
+	}
+	if *canaryFile != "" {
+		cfg.CanaryFile = *canaryFile
+	}
+	if *checkInterval > 0 {
+		cfg.CheckInterval = *checkInterval
+	}
+	if *readTimeout > 0 {
+		cfg.ReadTimeout = *readTimeout
+	}
+	if *shutdownTimeout > 0 {
+		cfg.ShutdownTimeout = *shutdownTimeout
+	}
+	if *debounceThreshold > 0 {
+		cfg.DebounceThreshold = *debounceThreshold
+	}
+	if *httpPort > 0 {
+		cfg.HTTPPort = *httpPort
+	}
+	if *logLevel != "" {
+		cfg.LogLevel = *logLevel
+	}
+	if *logFormat != "" {
+		cfg.LogFormat = *logFormat
+	}
+
+	// Validate configuration
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+// Validate checks that the configuration is valid.
+func (c *Config) Validate() error {
+	var errs []string
+
+	if len(c.MountPaths) == 0 {
+		errs = append(errs, "at least one mount path is required")
+	}
+
+	if c.CheckInterval < time.Second {
+		errs = append(errs, "check interval must be >= 1 second")
+	}
+
+	if c.ReadTimeout < 100*time.Millisecond {
+		errs = append(errs, "read timeout must be >= 100 milliseconds")
+	}
+
+	if c.ReadTimeout >= c.CheckInterval {
+		errs = append(errs, "read timeout must be less than check interval")
+	}
+
+	if c.DebounceThreshold < 1 {
+		errs = append(errs, "debounce threshold must be >= 1")
+	}
+
+	if c.HTTPPort < 1 || c.HTTPPort > 65535 {
+		errs = append(errs, "HTTP port must be between 1 and 65535")
+	}
+
+	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+	if !validLogLevels[c.LogLevel] {
+		errs = append(errs, fmt.Sprintf("log level must be one of: debug, info, warn, error (got %q)", c.LogLevel))
+	}
+
+	validLogFormats := map[string]bool{"json": true, "text": true}
+	if !validLogFormats[c.LogFormat] {
+		errs = append(errs, fmt.Sprintf("log format must be one of: json, text (got %q)", c.LogFormat))
+	}
+
+	if len(errs) > 0 {
+		return errors.New("configuration validation failed: " + strings.Join(errs, "; "))
+	}
+
+	return nil
+}
+
+// parseMountPaths splits a comma-separated string into a slice of paths.
+func parseMountPaths(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	paths := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			paths = append(paths, p)
+		}
+	}
+	return paths
+}
