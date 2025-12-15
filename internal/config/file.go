@@ -43,7 +43,7 @@ type FileMountConfig struct {
 	Name             string `json:"name,omitempty"`
 	Path             string `json:"path"`
 	CanaryFile       string `json:"canaryFile,omitempty"`
-	FailureThreshold int    `json:"failureThreshold,omitempty"`
+	FailureThreshold int    `json:"failureThreshold,omitempty"` // 0 = use global default, >= 1 = explicit value
 }
 
 // defaultConfigPath is the default location to check for a config file.

@@ -16,7 +16,7 @@ type MountConfig struct {
 	Name             string // Human-readable identifier (optional)
 	Path             string // Filesystem path to mount point (required)
 	CanaryFile       string // Relative path to canary file (optional, inherits global)
-	FailureThreshold int    // Consecutive failures before unhealthy (optional, inherits global)
+	FailureThreshold int    // Consecutive failures before unhealthy (0 = use global debounceThreshold)
 }
 
 // Config holds all runtime configuration for the mount monitor.

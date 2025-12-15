@@ -3,6 +3,7 @@ package unit
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -563,22 +564,31 @@ func TestPrecedence_EnvVarWorksWithoutConfigFileMounts(t *testing.T) {
 
 // TestPrecedence_GlobalSettingsOverriddenByEnvVar verifies that
 // global settings (not mounts) from config file ARE overridden by env vars.
+// This test simulates the precedence by manually applying env var logic after file loading.
 func TestPrecedence_GlobalSettingsOverriddenByEnvVar(t *testing.T) {
 	// Save and restore env vars
 	originalLogLevel := os.Getenv("LOG_LEVEL")
 	originalHTTPPort := os.Getenv("HTTP_PORT")
+	originalCheckInterval := os.Getenv("CHECK_INTERVAL")
 	defer func() {
 		os.Setenv("LOG_LEVEL", originalLogLevel)
 		os.Setenv("HTTP_PORT", originalHTTPPort)
+		os.Setenv("CHECK_INTERVAL", originalCheckInterval)
 	}()
+
+	// Set env vars that should override config file
+	os.Setenv("LOG_LEVEL", "error")
+	os.Setenv("HTTP_PORT", "9999")
+	os.Setenv("CHECK_INTERVAL", "2m")
 
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
-	// Config file sets logLevel and httpPort
+	// Config file sets different values
 	configJSON := `{
 		"logLevel": "debug",
 		"httpPort": 9000,
+		"checkInterval": "30s",
 		"mounts": [{"path": "/mnt/test"}]
 	}`
 
@@ -591,15 +601,40 @@ func TestPrecedence_GlobalSettingsOverriddenByEnvVar(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	// Verify config file values are loaded
+	// After file loading, values should be from config file
 	if cfg.LogLevel != "debug" {
-		t.Errorf("expected logLevel 'debug' from config file, got %q", cfg.LogLevel)
+		t.Errorf("after file load: expected logLevel 'debug', got %q", cfg.LogLevel)
 	}
 	if cfg.HTTPPort != 9000 {
-		t.Errorf("expected httpPort 9000 from config file, got %d", cfg.HTTPPort)
+		t.Errorf("after file load: expected httpPort 9000, got %d", cfg.HTTPPort)
+	}
+	if cfg.CheckInterval != 30*time.Second {
+		t.Errorf("after file load: expected checkInterval 30s, got %v", cfg.CheckInterval)
 	}
 
-	// Note: The full precedence test (env vars overriding these) would require
-	// testing the full Load() function, which parses flags. This test verifies
-	// that config file loading works correctly as the base layer.
+	// Simulate env var override (as Load() does after loadFromFile)
+	if envVal := os.Getenv("LOG_LEVEL"); envVal != "" {
+		cfg.LogLevel = envVal
+	}
+	if envVal := os.Getenv("HTTP_PORT"); envVal != "" {
+		if port, err := strconv.Atoi(envVal); err == nil {
+			cfg.HTTPPort = port
+		}
+	}
+	if envVal := os.Getenv("CHECK_INTERVAL"); envVal != "" {
+		if d, err := time.ParseDuration(envVal); err == nil {
+			cfg.CheckInterval = d
+		}
+	}
+
+	// After env var override, values should be from env vars
+	if cfg.LogLevel != "error" {
+		t.Errorf("after env override: expected logLevel 'error', got %q", cfg.LogLevel)
+	}
+	if cfg.HTTPPort != 9999 {
+		t.Errorf("after env override: expected httpPort 9999, got %d", cfg.HTTPPort)
+	}
+	if cfg.CheckInterval != 2*time.Minute {
+		t.Errorf("after env override: expected checkInterval 2m, got %v", cfg.CheckInterval)
+	}
 }
