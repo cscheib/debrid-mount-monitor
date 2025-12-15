@@ -76,21 +76,28 @@ func TestMonitor_DetectsRecovery(t *testing.T) {
 	checker := health.NewChecker(100 * time.Millisecond)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	mon := monitor.New([]*health.Mount{mount}, checker, 50*time.Millisecond, 2, logger)
+	checkInterval := 50 * time.Millisecond
+	mon := monitor.New([]*health.Mount{mount}, checker, checkInterval, 2, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	mon.Start(ctx)
 
 	// Wait for failures to register (need at least 2 check intervals for debounce)
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(5 * checkInterval)
 
 	// Now create the canary file to simulate recovery
 	if err := os.WriteFile(canaryPath, []byte("ok"), 0644); err != nil {
 		t.Fatalf("failed to create canary file: %v", err)
 	}
 
-	// Wait for recovery check (need at least 2 check intervals to be safe)
-	time.Sleep(200 * time.Millisecond)
+	// Poll for recovery with timeout (more robust than fixed sleep)
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if mount.GetStatus() == health.StatusHealthy {
+			break
+		}
+		time.Sleep(checkInterval)
+	}
 
 	cancel()
 	mon.Wait()
