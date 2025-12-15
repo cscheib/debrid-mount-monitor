@@ -87,8 +87,10 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	// Load from environment variables first
-	if envVal := os.Getenv("MOUNT_PATHS"); envVal != "" {
+	// Load from environment variables
+	// Note: MOUNT_PATHS only applies if no mounts were loaded from config file
+	// This preserves per-mount config from file while allowing env vars for legacy setups
+	if envVal := os.Getenv("MOUNT_PATHS"); envVal != "" && len(cfg.Mounts) == 0 {
 		cfg.MountPaths = parseMountPaths(envVal)
 	}
 	if envVal := os.Getenv("CANARY_FILE"); envVal != "" {
@@ -127,8 +129,10 @@ func Load() (*Config, error) {
 	}
 
 	// Override with flags if provided
+	// Note: --mount-paths flag takes highest precedence and clears config file mounts
 	if *mountPaths != "" {
 		cfg.MountPaths = parseMountPaths(*mountPaths)
+		cfg.Mounts = nil // Clear config file mounts - CLI flag takes precedence
 	}
 	if *canaryFile != "" {
 		cfg.CanaryFile = *canaryFile
