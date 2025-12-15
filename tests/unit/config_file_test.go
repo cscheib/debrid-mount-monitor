@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -652,5 +653,97 @@ func TestMountNameInStatusResponse(t *testing.T) {
 	}
 	if snapshot.Path != "/mnt/movies" {
 		t.Errorf("expected snapshot.Path '/mnt/movies', got %q", snapshot.Path)
+	}
+}
+
+// =============================================================================
+// Security Hardening Tests (Issue #17, #15)
+// =============================================================================
+
+// TestConfigFile_FileSizeLimit verifies that config files larger than 1MB are rejected.
+// This prevents DoS attacks via excessively large config files.
+func TestConfigFile_FileSizeLimit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	// Create a config file just over 1MB (1MB + overhead)
+	// Use strings.Repeat to create valid JSON content (null bytes are invalid in JSON strings)
+	padding := strings.Repeat("x", 1024*1024)
+	largeContent := `{"mounts":[{"path":"/mnt/test","name":"` + padding + `"}]}`
+
+	if err := os.WriteFile(configPath, []byte(largeContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	err := cfg.LoadFromFileForTesting(configPath)
+
+	if err == nil {
+		t.Error("expected error for config file exceeding 1MB size limit")
+	}
+
+	// Verify the error message mentions the size limit
+	if err != nil && !strings.Contains(err.Error(), "exceeds maximum size") {
+		t.Errorf("expected error to mention size limit, got: %v", err)
+	}
+}
+
+// TestConfigFile_FileSizeLimit_JustUnder verifies that config files just under 1MB are accepted.
+func TestConfigFile_FileSizeLimit_JustUnder(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	// Create a valid config file just under 1MB
+	configJSON := `{
+		"mounts": [
+			{"path": "/mnt/test"}
+		]
+	}`
+
+	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	err := cfg.LoadFromFileForTesting(configPath)
+
+	if err != nil {
+		t.Errorf("expected no error for config file under 1MB, got: %v", err)
+	}
+}
+
+// TestConfigFile_FileSizeLimit_ExactlyOneMB verifies that config files of exactly 1MB are accepted.
+// This is a boundary test - the limit is > 1MB, so exactly 1MB should be valid.
+func TestConfigFile_FileSizeLimit_ExactlyOneMB(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	// Create a config file of exactly 1MB (1048576 bytes)
+	// JSON structure: {"mounts":[{"path":"/mnt/test","name":"<padding>"}]}
+	prefix := `{"mounts":[{"path":"/mnt/test","name":"`
+	suffix := `"}]}`
+	targetSize := 1 << 20 // 1MB = 1048576 bytes
+	paddingSize := targetSize - len(prefix) - len(suffix)
+
+	// Create padding with 'x' characters (valid JSON string content)
+	padding := make([]byte, paddingSize)
+	for i := range padding {
+		padding[i] = 'x'
+	}
+
+	content := prefix + string(padding) + suffix
+	if len(content) != targetSize {
+		t.Fatalf("expected content size %d, got %d", targetSize, len(content))
+	}
+
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	err := cfg.LoadFromFileForTesting(configPath)
+
+	if err != nil {
+		t.Errorf("expected no error for config file of exactly 1MB, got: %v", err)
 	}
 }

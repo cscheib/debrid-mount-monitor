@@ -203,7 +203,7 @@ func (c *Config) Validate() error {
 	}
 
 	if c.ReadTimeout >= c.CheckInterval {
-		errs = append(errs, "read timeout must be less than check interval")
+		errs = append(errs, "read timeout must be less than check interval (otherwise health checks would overlap or never complete before the next check)")
 	}
 
 	if c.DebounceThreshold < 1 {
