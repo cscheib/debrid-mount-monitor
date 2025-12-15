@@ -81,20 +81,15 @@ func TestMonitor_DetectsRecovery(t *testing.T) {
 	mon := monitor.New([]*health.Mount{mount}, checker, checkInterval, debounceThreshold, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		mon.Wait()
+	}()
 	mon.Start(ctx)
 
 	// Poll until mount becomes unhealthy (debounce threshold exceeded)
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if mount.GetStatus() == health.StatusUnhealthy {
-			break
-		}
-		time.Sleep(checkInterval)
-	}
-
-	if mount.GetStatus() != health.StatusUnhealthy {
-		cancel()
-		mon.Wait()
+	// Use long timeout for CI with race detector
+	if !pollForStatus(t, mount, health.StatusUnhealthy, 10*time.Second, checkInterval) {
 		t.Fatalf("mount did not become unhealthy, got %v", mount.GetStatus())
 	}
 
@@ -103,22 +98,24 @@ func TestMonitor_DetectsRecovery(t *testing.T) {
 		t.Fatalf("failed to create canary file: %v", err)
 	}
 
-	// Poll for recovery with timeout
-	deadline = time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if mount.GetStatus() == health.StatusHealthy {
-			break
-		}
-		time.Sleep(checkInterval)
-	}
-
-	cancel()
-	mon.Wait()
-
-	// Verify the mount recovered to healthy
-	if mount.GetStatus() != health.StatusHealthy {
+	// Poll for recovery with timeout - needs to be long enough for monitor to detect
+	if !pollForStatus(t, mount, health.StatusHealthy, 10*time.Second, checkInterval) {
 		t.Errorf("expected mount status Healthy after recovery, got %v", mount.GetStatus())
 	}
+}
+
+// pollForStatus polls for a specific mount status with timeout.
+// Returns true if the status was reached, false on timeout.
+func pollForStatus(t *testing.T, mount *health.Mount, expected health.HealthStatus, timeout, interval time.Duration) bool {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if mount.GetStatus() == expected {
+			return true
+		}
+		time.Sleep(interval)
+	}
+	return false
 }
 
 func TestMonitor_MultipleMount(t *testing.T) {
