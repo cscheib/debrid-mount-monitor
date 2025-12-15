@@ -32,7 +32,16 @@ func (c *Checker) Check(ctx context.Context, mount *Mount) *CheckResult {
 	checkCtx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	// Perform the canary file read in a goroutine to respect context cancellation
+	// Perform the canary file read in a goroutine to respect context cancellation.
+	//
+	// NOTE: os.ReadFile does not respect context cancellation. If the context times out
+	// before ReadFile completes (e.g., on a hung NFS mount), this goroutine will leak
+	// until the underlying I/O operation eventually completes or fails. This is a known
+	// limitation of Go's file I/O - there is no portable way to cancel a blocking read.
+	// In practice, this is acceptable because:
+	// 1. Leaked goroutines will eventually complete when the mount recovers
+	// 2. The memory overhead per goroutine is small (~2KB stack)
+	// 3. Alternative approaches (goroutine pools) add complexity without solving the root cause
 	done := make(chan error, 1)
 	go func() {
 		_, err := os.ReadFile(mount.CanaryPath)

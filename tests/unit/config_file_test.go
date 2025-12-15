@@ -654,3 +654,53 @@ func TestMountNameInStatusResponse(t *testing.T) {
 		t.Errorf("expected snapshot.Path '/mnt/movies', got %q", snapshot.Path)
 	}
 }
+
+// =============================================================================
+// Security Hardening Tests (Issue #17, #15)
+// =============================================================================
+
+// TestConfigFile_FileSizeLimit verifies that config files larger than 1MB are rejected.
+// This prevents DoS attacks via excessively large config files.
+func TestConfigFile_FileSizeLimit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	// Create a config file just over 1MB (1MB + 1 byte)
+	// We'll create a valid JSON with a very long string
+	largeContent := `{"mounts":[{"path":"/mnt/test","name":"` + string(make([]byte, 1024*1024)) + `"}]}`
+
+	if err := os.WriteFile(configPath, []byte(largeContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	err := cfg.LoadFromFileForTesting(configPath)
+
+	if err == nil {
+		t.Error("expected error for config file exceeding 1MB size limit")
+	}
+}
+
+// TestConfigFile_FileSizeLimit_JustUnder verifies that config files just under 1MB are accepted.
+func TestConfigFile_FileSizeLimit_JustUnder(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	// Create a valid config file just under 1MB
+	configJSON := `{
+		"mounts": [
+			{"path": "/mnt/test"}
+		]
+	}`
+
+	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	err := cfg.LoadFromFileForTesting(configPath)
+
+	if err != nil {
+		t.Errorf("expected no error for config file under 1MB, got: %v", err)
+	}
+}

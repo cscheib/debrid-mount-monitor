@@ -4,9 +4,15 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
+	"runtime"
 	"time"
 )
+
+// maxConfigFileSize is the maximum allowed config file size (1MB).
+// This prevents DoS attacks via excessively large config files.
+const maxConfigFileSize = 1 << 20 // 1MB
 
 // Duration is a wrapper around time.Duration that supports JSON unmarshaling from strings.
 type Duration time.Duration
@@ -67,8 +73,8 @@ func (c *Config) loadFromFile(configPath string) error {
 		explicitPath = false
 	}
 
-	// Check if file exists
-	_, err := os.Stat(filePath)
+	// Check if file exists and get file info
+	info, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
 		if explicitPath {
 			return fmt.Errorf("config file not found: %s", filePath)
@@ -78,6 +84,21 @@ func (c *Config) loadFromFile(configPath string) error {
 	}
 	if err != nil {
 		return fmt.Errorf("error checking config file: %w", err)
+	}
+
+	// Check file size to prevent DoS via excessively large files
+	if info.Size() > maxConfigFileSize {
+		return fmt.Errorf("config file %s exceeds maximum size of %d bytes (got %d bytes)",
+			filePath, maxConfigFileSize, info.Size())
+	}
+
+	// Warn if config file is world-writable (security risk) - Unix only
+	if runtime.GOOS != "windows" {
+		if info.Mode().Perm()&0002 != 0 {
+			slog.Warn("config file is world-writable, which may be a security risk",
+				"path", filePath,
+				"mode", fmt.Sprintf("%04o", info.Mode().Perm()))
+		}
 	}
 
 	// Read and parse the file

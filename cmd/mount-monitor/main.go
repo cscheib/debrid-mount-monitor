@@ -144,10 +144,23 @@ func setupLogger(level, format string) *slog.Logger {
 		logLevel = slog.LevelInfo
 	}
 
+	opts := &slog.HandlerOptions{Level: logLevel}
+
+	// Pre-create handlers for stdout and stderr to avoid allocation on every log call
+	var stdoutHandler, stderrHandler slog.Handler
+	if format == "text" {
+		stdoutHandler = slog.NewTextHandler(os.Stdout, opts)
+		stderrHandler = slog.NewTextHandler(os.Stderr, opts)
+	} else {
+		stdoutHandler = slog.NewJSONHandler(os.Stdout, opts)
+		stderrHandler = slog.NewJSONHandler(os.Stderr, opts)
+	}
+
 	// Create a multi-stream handler that routes by log level
 	handler := &multiStreamHandler{
-		level:  logLevel,
-		format: format,
+		level:         logLevel,
+		stdoutHandler: stdoutHandler,
+		stderrHandler: stderrHandler,
 	}
 
 	return slog.New(handler)
@@ -155,9 +168,11 @@ func setupLogger(level, format string) *slog.Logger {
 
 // multiStreamHandler routes logs to stdout or stderr based on level.
 // debug, info → stdout; warn, error → stderr
+// Handlers are pre-created to avoid allocation on every log call.
 type multiStreamHandler struct {
-	level  slog.Level
-	format string
+	level         slog.Level
+	stdoutHandler slog.Handler
+	stderrHandler slog.Handler
 }
 
 func (h *multiStreamHandler) Enabled(_ context.Context, level slog.Level) bool {
@@ -165,26 +180,11 @@ func (h *multiStreamHandler) Enabled(_ context.Context, level slog.Level) bool {
 }
 
 func (h *multiStreamHandler) Handle(ctx context.Context, r slog.Record) error {
-	// Route to appropriate stream based on level
-	var w *os.File
+	// Route to appropriate pre-created handler based on level
 	if r.Level >= slog.LevelWarn {
-		w = os.Stderr
-	} else {
-		w = os.Stdout
+		return h.stderrHandler.Handle(ctx, r)
 	}
-
-	opts := &slog.HandlerOptions{
-		Level: h.level,
-	}
-
-	var handler slog.Handler
-	if h.format == "text" {
-		handler = slog.NewTextHandler(w, opts)
-	} else {
-		handler = slog.NewJSONHandler(w, opts)
-	}
-
-	return handler.Handle(ctx, r)
+	return h.stdoutHandler.Handle(ctx, r)
 }
 
 func (h *multiStreamHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
