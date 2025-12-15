@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chris/debrid-mount-monitor/internal/config"
+	"github.com/chris/debrid-mount-monitor/internal/health"
 )
 
 // T010: Test JSON file parsing with valid config
@@ -636,5 +637,20 @@ func TestPrecedence_GlobalSettingsOverriddenByEnvVar(t *testing.T) {
 	}
 	if cfg.CheckInterval != 2*time.Minute {
 		t.Errorf("after env override: expected checkInterval 2m, got %v", cfg.CheckInterval)
+	}
+}
+
+// TestMountNameInStatusResponse verifies FR-008: mount name appears in health status snapshot.
+// This ensures the Mount.Name field is properly propagated to status responses.
+func TestMountNameInStatusResponse(t *testing.T) {
+	mount := health.NewMount("test-movies", "/mnt/movies", ".health-check", 3)
+
+	snapshot := mount.Snapshot()
+
+	if snapshot.Name != "test-movies" {
+		t.Errorf("expected snapshot.Name 'test-movies', got %q", snapshot.Name)
+	}
+	if snapshot.Path != "/mnt/movies" {
+		t.Errorf("expected snapshot.Path '/mnt/movies', got %q", snapshot.Path)
 	}
 }

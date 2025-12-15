@@ -92,7 +92,7 @@
 - [ ] T025 [US2] Update mount creation loop in cmd/mount-monitor/main.go to use MountConfig values
 - [ ] T026 [US2] Pass per-mount failureThreshold to health.NewMount in cmd/mount-monitor/main.go
 - [ ] T026a [US2] Update monitor.go checkAll() to pass mount.FailureThreshold to UpdateState instead of global threshold
-- [ ] T027 [US2] Update Mount.UpdateState to use per-mount FailureThreshold instead of global in internal/health/state.go
+- [ ] T027 [US2] Verify Mount.UpdateState receives per-mount FailureThreshold via monitor.checkMount() parameter in internal/health/state.go
 - [ ] T028 [US2] Include mount Name in MountStatusResponse in internal/server/server.go
 
 **Checkpoint**: User Story 2 complete - each mount can have independent canary file and failure threshold
@@ -110,13 +110,13 @@
 - [ ] T029 [P] [US3] Test invalid JSON syntax error message in tests/unit/config_file_test.go
 - [ ] T030 [P] [US3] Test missing required "path" field error in tests/unit/config_file_test.go
 - [ ] T031 [P] [US3] Test invalid failureThreshold (zero/negative) error in tests/unit/config_file_test.go
-- [ ] T032 [P] [US3] Test empty mounts array error in tests/unit/config_file_test.go
+- [ ] T032 [P] [US3] Test empty mounts array triggers validation error (via existing Config.Validate()) in tests/unit/config_file_test.go
 - [ ] T033 [P] [US3] Test verbose startup logging output in tests/unit/config_test.go
 
 ### Implementation for User Story 3
 
 - [ ] T034 [US3] Implement ValidateFileConfig function in internal/config/file.go
-- [ ] T035 [US3] Add mount-level validation: path required, failureThreshold >= 1 in internal/config/file.go
+- [ ] T035 [US3] Add mount-level validation: path required, failureThreshold >= 0 (0 = use default, negative = invalid) in internal/config/file.go
 - [ ] T036 [US3] Format error messages with mount index and name (e.g., "mount[2] 'backup': ...") in internal/config/file.go
 - [ ] T037 [US3] Add verbose config logging at startup in cmd/mount-monitor/main.go (config source, mount count, settings)
 - [ ] T038 [US3] Log each mount's configuration at info level in cmd/mount-monitor/main.go (name, path, canaryFile, threshold)
