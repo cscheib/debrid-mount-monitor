@@ -18,7 +18,7 @@ func TestChecker_HealthyMount(t *testing.T) {
 		t.Fatalf("failed to create canary file: %v", err)
 	}
 
-	mount := health.NewMount(tmpDir, ".health-check")
+	mount := health.NewMount("", tmpDir, ".health-check", 3)
 	checker := health.NewChecker(5 * time.Second)
 
 	result := checker.Check(context.Background(), mount)
@@ -38,7 +38,7 @@ func TestChecker_MissingCanaryFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	// Don't create canary file
 
-	mount := health.NewMount(tmpDir, ".health-check")
+	mount := health.NewMount("", tmpDir, ".health-check", 3)
 	checker := health.NewChecker(5 * time.Second)
 
 	result := checker.Check(context.Background(), mount)
@@ -52,7 +52,7 @@ func TestChecker_MissingCanaryFile(t *testing.T) {
 }
 
 func TestChecker_MissingMountPath(t *testing.T) {
-	mount := health.NewMount("/nonexistent/path/that/does/not/exist", ".health-check")
+	mount := health.NewMount("", "/nonexistent/path/that/does/not/exist", ".health-check", 3)
 	checker := health.NewChecker(5 * time.Second)
 
 	result := checker.Check(context.Background(), mount)
@@ -75,7 +75,7 @@ func TestChecker_Timeout(t *testing.T) {
 		t.Fatalf("failed to create canary file: %v", err)
 	}
 
-	mount := health.NewMount(tmpDir, ".health-check")
+	mount := health.NewMount("", tmpDir, ".health-check", 3)
 	checker := health.NewChecker(100 * time.Millisecond)
 
 	// Use an already-cancelled context
@@ -102,7 +102,7 @@ func TestChecker_PermissionDenied(t *testing.T) {
 	}
 	defer os.Chmod(canaryPath, 0644) // Cleanup
 
-	mount := health.NewMount(tmpDir, ".health-check")
+	mount := health.NewMount("", tmpDir, ".health-check", 3)
 	checker := health.NewChecker(5 * time.Second)
 
 	result := checker.Check(context.Background(), mount)
@@ -123,7 +123,7 @@ func TestChecker_EmptyCanaryFile(t *testing.T) {
 		t.Fatalf("failed to create canary file: %v", err)
 	}
 
-	mount := health.NewMount(tmpDir, ".health-check")
+	mount := health.NewMount("", tmpDir, ".health-check", 3)
 	checker := health.NewChecker(5 * time.Second)
 
 	result := checker.Check(context.Background(), mount)

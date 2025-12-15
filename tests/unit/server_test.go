@@ -20,7 +20,7 @@ func testLogger() *slog.Logger {
 
 // TestLivenessEndpoint_HealthyMount tests liveness returns 200 for healthy mounts.
 func TestLivenessEndpoint_HealthyMount(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	// Make mount healthy
 	result := &health.CheckResult{
 		Mount:     mount,
@@ -63,7 +63,7 @@ func TestLivenessEndpoint_HealthyMount(t *testing.T) {
 // TestLivenessEndpoint_DegradedMount tests liveness returns 200 for degraded mounts.
 // Per spec: degraded (within debounce) should NOT trigger liveness failure.
 func TestLivenessEndpoint_DegradedMount(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	// Simulate degraded state (1 failure, below threshold)
@@ -96,7 +96,7 @@ func TestLivenessEndpoint_DegradedMount(t *testing.T) {
 // TestLivenessEndpoint_UnhealthyMount tests liveness returns 503 for unhealthy mounts.
 // Per spec: liveness returns 503 when mount is UNHEALTHY (past debounce threshold).
 func TestLivenessEndpoint_UnhealthyMount(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	// Simulate unhealthy state (3 failures)
@@ -140,7 +140,7 @@ func TestLivenessEndpoint_UnhealthyMount(t *testing.T) {
 // TestLivenessEndpoint_UnknownMount tests liveness returns 200 for unknown mounts.
 // Per spec: unknown (no check yet) should NOT trigger liveness failure.
 func TestLivenessEndpoint_UnknownMount(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	// Mount starts in UNKNOWN state (no checks performed)
 
 	if mount.GetStatus() != health.StatusUnknown {
@@ -163,7 +163,7 @@ func TestLivenessEndpoint_UnknownMount(t *testing.T) {
 
 // TestReadinessEndpoint_AllHealthy tests readiness returns 200 when all mounts are healthy.
 func TestReadinessEndpoint_AllHealthy(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	// Simulate healthy state
 	result := &health.CheckResult{
 		Mount:     mount,
@@ -197,7 +197,7 @@ func TestReadinessEndpoint_AllHealthy(t *testing.T) {
 
 // TestReadinessEndpoint_UnhealthyMount tests readiness returns 503 when any mount is unhealthy.
 func TestReadinessEndpoint_UnhealthyMount(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	// Simulate unhealthy state (3 failures)
@@ -236,7 +236,7 @@ func TestReadinessEndpoint_UnhealthyMount(t *testing.T) {
 // TestReadinessEndpoint_DegradedMount tests readiness returns 503 for degraded mounts.
 // Per spec: readiness requires HEALTHY state - degraded triggers 503.
 func TestReadinessEndpoint_DegradedMount(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	// Simulate degraded state (1 failure, below threshold)
@@ -269,7 +269,7 @@ func TestReadinessEndpoint_DegradedMount(t *testing.T) {
 // TestReadinessEndpoint_UnknownMount tests readiness returns 503 for unknown mounts.
 // Per spec: readiness requires HEALTHY - unknown (no check yet) triggers 503.
 func TestReadinessEndpoint_UnknownMount(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	// Mount starts in UNKNOWN state (no checks performed)
 
 	if mount.GetStatus() != health.StatusUnknown {
@@ -292,8 +292,8 @@ func TestReadinessEndpoint_UnknownMount(t *testing.T) {
 
 // TestStatusEndpoint_DetailedInfo tests the status endpoint returns detailed mount info.
 func TestStatusEndpoint_DetailedInfo(t *testing.T) {
-	mount1 := health.NewMount("/mnt/test1", ".health-check")
-	mount2 := health.NewMount("/mnt/test2", ".health-check")
+	mount1 := health.NewMount("", "/mnt/test1", ".health-check", 3)
+	mount2 := health.NewMount("", "/mnt/test2", ".health-check", 3)
 
 	// Mount1: healthy
 	result1 := &health.CheckResult{
@@ -361,7 +361,7 @@ func TestStatusEndpoint_DetailedInfo(t *testing.T) {
 // TestStatusEndpoint_DegradedMount tests status returns 503 when any mount is degraded.
 // Per spec: status endpoint uses same logic as readiness.
 func TestStatusEndpoint_DegradedMount(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 
 	// Simulate degraded state (1 failure)
 	result := &health.CheckResult{
@@ -388,7 +388,7 @@ func TestStatusEndpoint_DegradedMount(t *testing.T) {
 
 // TestEndpoints_MethodNotAllowed tests that non-GET methods return 405.
 func TestEndpoints_MethodNotAllowed(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	srv := server.New([]*health.Mount{mount}, 0, testLogger())
 	handler := createServerHandler(srv)
 

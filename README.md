@@ -13,7 +13,49 @@ A Kubernetes sidecar container that monitors the health of debrid WebDAV mount p
 
 ## Configuration
 
-Configuration is done via environment variables:
+Configuration can be done via JSON file, environment variables, or CLI flags.
+
+**Precedence** (later overrides earlier): Defaults → Config File → Environment Variables → CLI Flags
+
+### JSON Configuration File
+
+Create a `config.json` file in your working directory or specify a path with `--config`:
+
+```json
+{
+  "checkInterval": "30s",
+  "readTimeout": "5s",
+  "shutdownTimeout": "30s",
+  "debounceThreshold": 3,
+  "httpPort": 8080,
+  "logLevel": "info",
+  "logFormat": "json",
+  "canaryFile": ".health-check",
+  "mounts": [
+    {
+      "name": "movies",
+      "path": "/mnt/movies",
+      "canaryFile": ".health-check",
+      "failureThreshold": 3
+    },
+    {
+      "name": "tv",
+      "path": "/mnt/tv",
+      "failureThreshold": 5
+    }
+  ]
+}
+```
+
+#### Per-Mount Configuration
+
+Each mount can override global settings:
+- `name`: Human-readable identifier (shown in logs and status)
+- `path`: Filesystem path to mount point (required)
+- `canaryFile`: Override global canary file for this mount
+- `failureThreshold`: Override global debounce threshold for this mount
+
+### Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -26,6 +68,21 @@ Configuration is done via environment variables:
 | `HTTP_PORT` | Port for health probe endpoints | `8080` |
 | `LOG_LEVEL` | Log level (debug, info, warn, error) | `info` |
 | `LOG_FORMAT` | Log format (json, text) | `json` |
+
+### CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--config`, `-c` | Path to JSON configuration file |
+| `--mount-paths` | Comma-separated list of mount paths |
+| `--canary-file` | Canary file name |
+| `--check-interval` | Health check interval |
+| `--read-timeout` | Canary file read timeout |
+| `--debounce-threshold` | Consecutive failures threshold |
+| `--shutdown-timeout` | Graceful shutdown timeout |
+| `--http-port` | HTTP server port |
+| `--log-level` | Log level |
+| `--log-format` | Log format |
 
 ## Endpoints
 

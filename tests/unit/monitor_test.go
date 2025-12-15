@@ -19,7 +19,7 @@ func TestMonitor_StartsAndStops(t *testing.T) {
 		t.Fatalf("failed to create canary file: %v", err)
 	}
 
-	mount := health.NewMount(tmpDir, ".health-check")
+	mount := health.NewMount("", tmpDir, ".health-check", 3)
 	checker := health.NewChecker(5 * time.Second)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
@@ -45,7 +45,7 @@ func TestMonitor_DetectsFailure(t *testing.T) {
 	tmpDir := t.TempDir()
 	// Don't create canary file - mount should be unhealthy
 
-	mount := health.NewMount(tmpDir, ".health-check")
+	mount := health.NewMount("", tmpDir, ".health-check", 3)
 	checker := health.NewChecker(100 * time.Millisecond)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
@@ -72,7 +72,7 @@ func TestMonitor_DetectsRecovery(t *testing.T) {
 	canaryPath := filepath.Join(tmpDir, ".health-check")
 
 	// Don't create canary initially
-	mount := health.NewMount(tmpDir, ".health-check")
+	mount := health.NewMount("", tmpDir, ".health-check", 3)
 	checker := health.NewChecker(100 * time.Millisecond)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
@@ -129,8 +129,8 @@ func TestMonitor_MultipleMount(t *testing.T) {
 	}
 
 	// Mount2: no canary file (unhealthy)
-	mount1 := health.NewMount(tmpDir1, ".health-check")
-	mount2 := health.NewMount(tmpDir2, ".health-check")
+	mount1 := health.NewMount("", tmpDir1, ".health-check", 3)
+	mount2 := health.NewMount("", tmpDir2, ".health-check", 3)
 
 	checker := health.NewChecker(100 * time.Millisecond)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))

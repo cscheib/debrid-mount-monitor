@@ -75,7 +75,12 @@ func (m *Monitor) checkAll(ctx context.Context) {
 
 func (m *Monitor) checkMount(ctx context.Context, mount *health.Mount) {
 	result := m.checker.Check(ctx, mount)
-	transition := mount.UpdateState(result, m.debounceThreshold)
+	// Use per-mount threshold if set, otherwise fall back to global threshold
+	threshold := mount.FailureThreshold
+	if threshold == 0 {
+		threshold = m.debounceThreshold
+	}
+	transition := mount.UpdateState(result, threshold)
 
 	// Log check result
 	logAttrs := []any{
