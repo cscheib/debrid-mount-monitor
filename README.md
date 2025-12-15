@@ -84,6 +84,26 @@ Each mount can override global settings:
 | `--log-level` | Log level |
 | `--log-format` | Log format |
 
+## Security
+
+### Config File Size Limit
+
+Config files are limited to **1MB maximum** to prevent denial-of-service attacks via excessively large files. This limit is generous—typical configurations are under 10KB. If your config file approaches this limit, consider whether all mounts need to be in a single file.
+
+### File Permissions
+
+For production deployments, secure your config file permissions:
+
+```bash
+# Recommended: Owner read/write only
+chmod 600 config.json
+
+# Alternative: Owner read/write, group read
+chmod 640 config.json
+```
+
+The monitor will log a **warning** if the config file is world-writable (`chmod 666` or similar), as this could allow unauthorized modification. This check only runs on Unix systems (Linux, macOS).
+
 ## Endpoints
 
 | Endpoint | Description |
