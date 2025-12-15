@@ -22,6 +22,7 @@ Configuration is done via environment variables:
 | `CHECK_INTERVAL` | Interval between health checks | `30s` |
 | `READ_TIMEOUT` | Timeout for canary file reads | `5s` |
 | `DEBOUNCE_THRESHOLD` | Consecutive failures before unhealthy | `3` |
+| `SHUTDOWN_TIMEOUT` | Maximum time for graceful shutdown | `30s` |
 | `HTTP_PORT` | Port for health probe endpoints | `8080` |
 | `LOG_LEVEL` | Log level (debug, info, warn, error) | `info` |
 | `LOG_FORMAT` | Log format (json, text) | `json` |
