@@ -69,6 +69,8 @@ func (s *Server) handleLiveness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.logger.Debug("probe request", "endpoint", "/healthz/live", "status", http.StatusOK, "result", "alive")
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(map[string]string{"status": "alive"}); err != nil {
@@ -96,11 +98,13 @@ func (s *Server) handleReadiness(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if allHealthy {
+		s.logger.Debug("probe request", "endpoint", "/healthz/ready", "status", http.StatusOK, "result", "ready")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(map[string]string{"status": "ready"}); err != nil {
 			s.logger.Error("failed to encode readiness response", "error", err)
 		}
 	} else {
+		s.logger.Info("probe request", "endpoint", "/healthz/ready", "status", http.StatusServiceUnavailable, "result", "not_ready")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		if err := json.NewEncoder(w).Encode(map[string]string{"status": "not_ready"}); err != nil {
 			s.logger.Error("failed to encode readiness response", "error", err)
@@ -166,8 +170,10 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if overallHealthy {
+		s.logger.Debug("probe request", "endpoint", "/healthz/status", "status", http.StatusOK, "result", overallStatus)
 		w.WriteHeader(http.StatusOK)
 	} else {
+		s.logger.Info("probe request", "endpoint", "/healthz/status", "status", http.StatusServiceUnavailable, "result", overallStatus)
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {

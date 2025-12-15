@@ -114,13 +114,30 @@ As a container orchestrator (Kubernetes, Docker), I need the monitor to shut dow
 - **FR-014**: System MUST exit with code 0 on successful shutdown and non-zero on errors.
 - **FR-015**: System MUST support separate endpoints for liveness (/healthz/live) and readiness (/healthz/ready) probes.
 - **FR-016**: Project MUST include GitHub Actions CI workflow that builds for both ARM64 and AMD64 architectures and runs all tests.
+- **FR-017**: System SHOULD expose a detailed status endpoint (/healthz/status) that returns JSON with per-mount health details including path, status, last check time, failure count, and last error message.
 
 ### Key Entities
 
-- **Mount**: A filesystem path to monitor. Attributes: path, canary file path, health status (healthy/unhealthy), last check time, consecutive failure count, debounce state, last error message.
+- **Mount**: A filesystem path to monitor. Attributes: path, canary file path, health status (unknown/healthy/degraded/unhealthy), last check time, consecutive failure count, last error message. States: unknown (initial, before first check), healthy (canary readable), degraded (failing but within debounce threshold), unhealthy (failing past debounce threshold).
 - **Health Check Result**: The outcome of a single health check. Attributes: mount path, timestamp, status, error message (if any).
 - **Health State Transition**: A change in mount health status. Attributes: mount path, timestamp, previous state, new state, trigger (check result or recovery).
 - **Probe Response**: The response to a Kubernetes probe request. Attributes: probe type (liveness/readiness), timestamp, HTTP status code, aggregate mount health.
+
+### Configuration Options
+
+All configuration is provided via environment variables or command-line flags. Flags take precedence over environment variables.
+
+| Setting | Env Var | Flag | Default | Description |
+|---------|---------|------|---------|-------------|
+| Mount paths | `MOUNT_PATHS` | `--mount-paths` | (required) | Comma-separated list of mount paths to monitor |
+| Canary file | `CANARY_FILE` | `--canary-file` | `.health-check` | Relative path to canary file within each mount |
+| Check interval | `CHECK_INTERVAL` | `--check-interval` | `30s` | Time between health checks |
+| Read timeout | `READ_TIMEOUT` | `--read-timeout` | `5s` | Timeout for canary file read operation |
+| Shutdown timeout | `SHUTDOWN_TIMEOUT` | `--shutdown-timeout` | `30s` | Maximum time for graceful shutdown |
+| Debounce threshold | `DEBOUNCE_THRESHOLD` | `--debounce-threshold` | `3` | Consecutive failures before marking unhealthy |
+| HTTP port | `HTTP_PORT` | `--http-port` | `8080` | Port for health probe endpoints |
+| Log level | `LOG_LEVEL` | `--log-level` | `info` | Log verbosity: debug, info, warn, error |
+| Log format | `LOG_FORMAT` | `--log-format` | `json` | Log output format: json, text |
 
 ## Assumptions
 
@@ -137,7 +154,7 @@ As a container orchestrator (Kubernetes, Docker), I need the monitor to shut dow
 
 - **SC-001**: Mount failures are detected within 2x the configured check interval (default: 60 seconds).
 - **SC-002**: False positive restart rate is less than 1% (transient failures don't trigger restarts).
-- **SC-003**: Liveness probe returns failure status within 5 seconds of confirmed unhealthy state (debounce threshold crossed).
+- **SC-003**: Readiness probe returns failure status within 5 seconds of confirmed unhealthy state (debounce threshold crossed).
 - **SC-004**: Graceful shutdown completes within 30 seconds of receiving termination signal.
 - **SC-005**: Health endpoint responds within 100 milliseconds.
 - **SC-006**: System starts and begins monitoring within 5 seconds of launch.
