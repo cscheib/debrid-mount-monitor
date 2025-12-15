@@ -81,16 +81,16 @@ func TestMonitor_DetectsRecovery(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	mon.Start(ctx)
 
-	// Wait for failures to register
-	time.Sleep(150 * time.Millisecond)
+	// Wait for failures to register (need at least 2 check intervals for debounce)
+	time.Sleep(200 * time.Millisecond)
 
 	// Now create the canary file to simulate recovery
 	if err := os.WriteFile(canaryPath, []byte("ok"), 0644); err != nil {
 		t.Fatalf("failed to create canary file: %v", err)
 	}
 
-	// Wait for recovery check
-	time.Sleep(100 * time.Millisecond)
+	// Wait for recovery check (need at least 2 check intervals to be safe)
+	time.Sleep(200 * time.Millisecond)
 
 	cancel()
 	mon.Wait()
