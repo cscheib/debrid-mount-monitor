@@ -2,6 +2,7 @@
 package health
 
 import (
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -38,23 +39,20 @@ func (s HealthStatus) String() string {
 
 // Mount represents a single mount point being monitored.
 type Mount struct {
-	Path         string        // Absolute path to mount point
-	CanaryPath   string        // Full path to canary file
-	Status       HealthStatus  // Current health status
-	LastCheck    time.Time     // Timestamp of last health check
-	LastError    error         // Last error encountered (nil if healthy)
-	FailureCount int           // Consecutive failure count for debounce
-	mu           sync.RWMutex  // Protects all fields
+	Path         string       // Absolute path to mount point
+	CanaryPath   string       // Full path to canary file
+	Status       HealthStatus // Current health status
+	LastCheck    time.Time    // Timestamp of last health check
+	LastError    error        // Last error encountered (nil if healthy)
+	FailureCount int          // Consecutive failure count for debounce
+	mu           sync.RWMutex // Protects all fields
 }
 
 // NewMount creates a new Mount instance.
 func NewMount(path, canaryFile string) *Mount {
 	canaryPath := path
 	if canaryFile != "" {
-		if path[len(path)-1] != '/' {
-			canaryPath += "/"
-		}
-		canaryPath += canaryFile
+		canaryPath = filepath.Join(path, canaryFile)
 	}
 	return &Mount{
 		Path:       path,

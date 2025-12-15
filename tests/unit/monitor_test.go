@@ -76,29 +76,46 @@ func TestMonitor_DetectsRecovery(t *testing.T) {
 	checker := health.NewChecker(100 * time.Millisecond)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	mon := monitor.New([]*health.Mount{mount}, checker, 50*time.Millisecond, 2, logger)
+	checkInterval := 100 * time.Millisecond
+	debounceThreshold := 2
+	mon := monitor.New([]*health.Mount{mount}, checker, checkInterval, debounceThreshold, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		mon.Wait()
+	}()
 	mon.Start(ctx)
 
-	// Wait for failures to register
-	time.Sleep(150 * time.Millisecond)
+	// Poll until mount becomes unhealthy (debounce threshold exceeded)
+	// Use long timeout for CI with race detector
+	if !pollForStatus(t, mount, health.StatusUnhealthy, 10*time.Second, checkInterval) {
+		t.Fatalf("mount did not become unhealthy, got %v", mount.GetStatus())
+	}
 
 	// Now create the canary file to simulate recovery
 	if err := os.WriteFile(canaryPath, []byte("ok"), 0644); err != nil {
 		t.Fatalf("failed to create canary file: %v", err)
 	}
 
-	// Wait for recovery check
-	time.Sleep(100 * time.Millisecond)
-
-	cancel()
-	mon.Wait()
-
-	// Verify the mount recovered to healthy
-	if mount.GetStatus() != health.StatusHealthy {
+	// Poll for recovery with timeout - needs to be long enough for monitor to detect
+	if !pollForStatus(t, mount, health.StatusHealthy, 10*time.Second, checkInterval) {
 		t.Errorf("expected mount status Healthy after recovery, got %v", mount.GetStatus())
 	}
+}
+
+// pollForStatus polls for a specific mount status with timeout.
+// Returns true if the status was reached, false on timeout.
+func pollForStatus(t *testing.T, mount *health.Mount, expected health.HealthStatus, timeout, interval time.Duration) bool {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if mount.GetStatus() == expected {
+			return true
+		}
+		time.Sleep(interval)
+	}
+	return false
 }
 
 func TestMonitor_MultipleMount(t *testing.T) {

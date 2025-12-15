@@ -1,6 +1,6 @@
-# Binaries
-mount-monitor
-mount-monitor-*
+# Binaries (in root or bin/)
+/mount-monitor
+/mount-monitor-*
 *.exe
 *.exe~
 *.dll
@@ -43,3 +43,4 @@ bin/
 # Temporary files
 *.tmp
 *.log
+.claude/

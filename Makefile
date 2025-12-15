@@ -43,11 +43,11 @@ clean:
 
 # Build Docker image
 docker:
-	docker build -f build/Dockerfile -t $(BINARY_NAME):$(VERSION) .
+	docker build -f Dockerfile -t $(BINARY_NAME):$(VERSION) .
 
 # Build Docker debug image
 docker-debug:
-	docker build -f build/Dockerfile.debug -t $(BINARY_NAME):$(VERSION)-debug .
+	docker build -f Dockerfile.debug -t $(BINARY_NAME):$(VERSION)-debug .
 
 # Run locally with example config
 run:

@@ -24,10 +24,10 @@
 
 **Purpose**: Project initialization, Go module setup, and CI configuration
 
-- [ ] T001 Create project directory structure per plan.md (cmd/, internal/, build/, .github/)
+- [ ] T001 Create project directory structure per plan.md (cmd/, internal/, .github/)
 - [ ] T002 Initialize Go module with `go mod init` in repository root
-- [ ] T003 [P] Create Dockerfile for multi-stage build in build/Dockerfile
-- [ ] T004 [P] Create debug Dockerfile with Alpine base in build/Dockerfile.debug
+- [ ] T003 [P] Create Dockerfile for multi-stage build in Dockerfile (repository root)
+- [ ] T004 [P] Create debug Dockerfile with Alpine base in Dockerfile.debug (repository root)
 - [ ] T005 [P] Create GitHub Actions CI workflow in .github/workflows/ci.yml (FR-016: build ARM64/AMD64, run tests)
 - [ ] T006 [P] Create .gitignore for Go project in repository root
 
@@ -130,7 +130,7 @@
 
 ### Tests for User Story 4
 
-- [ ] T031 [P] [US4] Write integration test for graceful shutdown in tests/integration/monitor_test.go
+- [x] T031 [P] [US4] Write integration test for graceful shutdown in tests/unit/shutdown_test.go
 
 ### Implementation for User Story 4
 
@@ -148,7 +148,7 @@
 
 **Purpose**: Final integration, documentation, and validation
 
-- [ ] T037 [P] Write end-to-end integration test in tests/integration/monitor_test.go
+- [x] T037 [P] Write end-to-end integration test in tests/unit/monitor_test.go
 - [ ] T038 Validate quickstart.md scenarios work correctly
 - [ ] T039 [P] Update README.md with build and usage instructions
 - [ ] T040 Run full test suite and verify CI passes

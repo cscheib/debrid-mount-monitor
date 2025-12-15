@@ -39,14 +39,15 @@ As a media server operator, I need the pod to be automatically restarted by Kube
 
 **Why this priority**: This is the primary protective action that prevents data corruption. It depends on P1 (health monitoring) being functional.
 
-**Independent Test**: Can be fully tested by simulating a mount failure and verifying the liveness probe returns failure status, which Kubernetes uses to trigger pod restart. Delivers value by automatically protecting media servers from metadata corruption.
+**Independent Test**: Can be fully tested by simulating a mount failure and verifying the readiness probe returns failure status. Kubernetes can be configured to restart pods based on prolonged readiness failures. Delivers value by automatically protecting media servers from metadata corruption.
 
 **Acceptance Scenarios**:
 
-1. **Given** a mount is healthy, **When** the Kubernetes liveness probe queries the health endpoint, **Then** the endpoint returns success (HTTP 200).
-2. **Given** a mount becomes unhealthy and remains unhealthy past the debounce threshold, **When** the Kubernetes liveness probe queries the health endpoint, **Then** the endpoint returns failure (HTTP 503).
-3. **Given** a mount becomes unhealthy, **When** the unhealthy state is transient (recovers within debounce period), **Then** the health endpoint continues returning success (false positive protection).
-4. **Given** the health endpoint returns failure, **When** Kubernetes restarts the pod, **Then** the restart is logged before shutdown.
+1. **Given** a mount is healthy, **When** the Kubernetes readiness probe queries the health endpoint, **Then** the endpoint returns success (HTTP 200).
+2. **Given** a mount becomes unhealthy and remains unhealthy past the debounce threshold, **When** the Kubernetes readiness probe queries the health endpoint, **Then** the endpoint returns failure (HTTP 503).
+3. **Given** a mount becomes unhealthy, **When** the unhealthy state is transient (recovers within debounce period), **Then** the readiness endpoint continues returning success (false positive protection).
+4. **Given** the readiness endpoint returns failure, **When** Kubernetes restarts the pod (via configured restart policy), **Then** the restart is logged before shutdown.
+5. **Given** the service is running, **When** the liveness probe is queried, **Then** the endpoint returns success (HTTP 200) indicating the process is alive.
 
 ---
 
@@ -101,8 +102,8 @@ As a container orchestrator (Kubernetes, Docker), I need the monitor to shut dow
 - **FR-002**: System MUST detect mount failures by reading a configurable canary file within each mount path, with a configurable timeout (default: 5 seconds) to detect stale/hung mounts. Detectable failures include: path not found, permission denied, I/O errors, read timeout (stale mount).
 - **FR-003**: System MUST perform health checks at a configurable interval (default: 30 seconds).
 - **FR-004**: System MUST implement debounce/threshold logic to prevent false positive restarts from transient failures (default: 3 consecutive failures before action).
-- **FR-005**: System MUST expose an HTTP health endpoint for Kubernetes liveness probe that returns HTTP 503 when mount health is unhealthy (past debounce threshold), triggering pod restart.
-- **FR-006**: System MUST expose an HTTP health endpoint for Kubernetes readiness probe that returns HTTP 503 when any mount is unhealthy, preventing traffic routing until healthy.
+- **FR-005**: System MUST expose an HTTP liveness endpoint (/healthz/live) that returns HTTP 200 when the service process is running. This indicates the service is alive and able to respond to requests.
+- **FR-006**: System MUST expose an HTTP readiness endpoint (/healthz/ready) that returns HTTP 503 when any mount is unhealthy (past debounce threshold), preventing traffic routing until healthy. Kubernetes can be configured to restart pods based on prolonged readiness failures.
 - **FR-007**: System MUST log all health state transitions with timestamp, mount path, and previous/new state.
 - **FR-008**: System MUST log all health endpoint responses (probe queries) with timestamp and result.
 - **FR-009**: System MUST handle SIGTERM and SIGINT signals for graceful shutdown.
@@ -113,13 +114,30 @@ As a container orchestrator (Kubernetes, Docker), I need the monitor to shut dow
 - **FR-014**: System MUST exit with code 0 on successful shutdown and non-zero on errors.
 - **FR-015**: System MUST support separate endpoints for liveness (/healthz/live) and readiness (/healthz/ready) probes.
 - **FR-016**: Project MUST include GitHub Actions CI workflow that builds for both ARM64 and AMD64 architectures and runs all tests.
+- **FR-017**: System SHOULD expose a detailed status endpoint (/healthz/status) that returns JSON with per-mount health details including path, status, last check time, failure count, and last error message.
 
 ### Key Entities
 
-- **Mount**: A filesystem path to monitor. Attributes: path, canary file path, health status (healthy/unhealthy), last check time, consecutive failure count, debounce state, last error message.
+- **Mount**: A filesystem path to monitor. Attributes: path, canary file path, health status (unknown/healthy/degraded/unhealthy), last check time, consecutive failure count, last error message. States: unknown (initial, before first check), healthy (canary readable), degraded (failing but within debounce threshold), unhealthy (failing past debounce threshold).
 - **Health Check Result**: The outcome of a single health check. Attributes: mount path, timestamp, status, error message (if any).
 - **Health State Transition**: A change in mount health status. Attributes: mount path, timestamp, previous state, new state, trigger (check result or recovery).
 - **Probe Response**: The response to a Kubernetes probe request. Attributes: probe type (liveness/readiness), timestamp, HTTP status code, aggregate mount health.
+
+### Configuration Options
+
+All configuration is provided via environment variables or command-line flags. Flags take precedence over environment variables.
+
+| Setting | Env Var | Flag | Default | Description |
+|---------|---------|------|---------|-------------|
+| Mount paths | `MOUNT_PATHS` | `--mount-paths` | (required) | Comma-separated list of mount paths to monitor |
+| Canary file | `CANARY_FILE` | `--canary-file` | `.health-check` | Relative path to canary file within each mount |
+| Check interval | `CHECK_INTERVAL` | `--check-interval` | `30s` | Time between health checks |
+| Read timeout | `READ_TIMEOUT` | `--read-timeout` | `5s` | Timeout for canary file read operation |
+| Shutdown timeout | `SHUTDOWN_TIMEOUT` | `--shutdown-timeout` | `30s` | Maximum time for graceful shutdown |
+| Debounce threshold | `DEBOUNCE_THRESHOLD` | `--debounce-threshold` | `3` | Consecutive failures before marking unhealthy |
+| HTTP port | `HTTP_PORT` | `--http-port` | `8080` | Port for health probe endpoints |
+| Log level | `LOG_LEVEL` | `--log-level` | `info` | Log verbosity: debug, info, warn, error |
+| Log format | `LOG_FORMAT` | `--log-format` | `json` | Log output format: json, text |
 
 ## Assumptions
 
@@ -136,7 +154,7 @@ As a container orchestrator (Kubernetes, Docker), I need the monitor to shut dow
 
 - **SC-001**: Mount failures are detected within 2x the configured check interval (default: 60 seconds).
 - **SC-002**: False positive restart rate is less than 1% (transient failures don't trigger restarts).
-- **SC-003**: Liveness probe returns failure status within 5 seconds of confirmed unhealthy state (debounce threshold crossed).
+- **SC-003**: Readiness probe returns failure status within 5 seconds of confirmed unhealthy state (debounce threshold crossed).
 - **SC-004**: Graceful shutdown completes within 30 seconds of receiving termination signal.
 - **SC-005**: Health endpoint responds within 100 milliseconds.
 - **SC-006**: System starts and begins monitoring within 5 seconds of launch.
