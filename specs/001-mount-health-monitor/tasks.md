@@ -24,10 +24,10 @@
 
 **Purpose**: Project initialization, Go module setup, and CI configuration
 
-- [ ] T001 Create project directory structure per plan.md (cmd/, internal/, build/, .github/)
+- [ ] T001 Create project directory structure per plan.md (cmd/, internal/, .github/)
 - [ ] T002 Initialize Go module with `go mod init` in repository root
-- [ ] T003 [P] Create Dockerfile for multi-stage build in build/Dockerfile
-- [ ] T004 [P] Create debug Dockerfile with Alpine base in build/Dockerfile.debug
+- [ ] T003 [P] Create Dockerfile for multi-stage build in Dockerfile (repository root)
+- [ ] T004 [P] Create debug Dockerfile with Alpine base in Dockerfile.debug (repository root)
 - [ ] T005 [P] Create GitHub Actions CI workflow in .github/workflows/ci.yml (FR-016: build ARM64/AMD64, run tests)
 - [ ] T006 [P] Create .gitignore for Go project in repository root
 
