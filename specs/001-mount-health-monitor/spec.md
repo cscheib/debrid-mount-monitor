@@ -39,14 +39,15 @@ As a media server operator, I need the pod to be automatically restarted by Kube
 
 **Why this priority**: This is the primary protective action that prevents data corruption. It depends on P1 (health monitoring) being functional.
 
-**Independent Test**: Can be fully tested by simulating a mount failure and verifying the liveness probe returns failure status, which Kubernetes uses to trigger pod restart. Delivers value by automatically protecting media servers from metadata corruption.
+**Independent Test**: Can be fully tested by simulating a mount failure and verifying the readiness probe returns failure status. Kubernetes can be configured to restart pods based on prolonged readiness failures. Delivers value by automatically protecting media servers from metadata corruption.
 
 **Acceptance Scenarios**:
 
-1. **Given** a mount is healthy, **When** the Kubernetes liveness probe queries the health endpoint, **Then** the endpoint returns success (HTTP 200).
-2. **Given** a mount becomes unhealthy and remains unhealthy past the debounce threshold, **When** the Kubernetes liveness probe queries the health endpoint, **Then** the endpoint returns failure (HTTP 503).
-3. **Given** a mount becomes unhealthy, **When** the unhealthy state is transient (recovers within debounce period), **Then** the health endpoint continues returning success (false positive protection).
-4. **Given** the health endpoint returns failure, **When** Kubernetes restarts the pod, **Then** the restart is logged before shutdown.
+1. **Given** a mount is healthy, **When** the Kubernetes readiness probe queries the health endpoint, **Then** the endpoint returns success (HTTP 200).
+2. **Given** a mount becomes unhealthy and remains unhealthy past the debounce threshold, **When** the Kubernetes readiness probe queries the health endpoint, **Then** the endpoint returns failure (HTTP 503).
+3. **Given** a mount becomes unhealthy, **When** the unhealthy state is transient (recovers within debounce period), **Then** the readiness endpoint continues returning success (false positive protection).
+4. **Given** the readiness endpoint returns failure, **When** Kubernetes restarts the pod (via configured restart policy), **Then** the restart is logged before shutdown.
+5. **Given** the service is running, **When** the liveness probe is queried, **Then** the endpoint returns success (HTTP 200) indicating the process is alive.
 
 ---
 
@@ -101,8 +102,8 @@ As a container orchestrator (Kubernetes, Docker), I need the monitor to shut dow
 - **FR-002**: System MUST detect mount failures by reading a configurable canary file within each mount path, with a configurable timeout (default: 5 seconds) to detect stale/hung mounts. Detectable failures include: path not found, permission denied, I/O errors, read timeout (stale mount).
 - **FR-003**: System MUST perform health checks at a configurable interval (default: 30 seconds).
 - **FR-004**: System MUST implement debounce/threshold logic to prevent false positive restarts from transient failures (default: 3 consecutive failures before action).
-- **FR-005**: System MUST expose an HTTP health endpoint for Kubernetes liveness probe that returns HTTP 503 when mount health is unhealthy (past debounce threshold), triggering pod restart.
-- **FR-006**: System MUST expose an HTTP health endpoint for Kubernetes readiness probe that returns HTTP 503 when any mount is unhealthy, preventing traffic routing until healthy.
+- **FR-005**: System MUST expose an HTTP liveness endpoint (/healthz/live) that returns HTTP 200 when the service process is running. This indicates the service is alive and able to respond to requests.
+- **FR-006**: System MUST expose an HTTP readiness endpoint (/healthz/ready) that returns HTTP 503 when any mount is unhealthy (past debounce threshold), preventing traffic routing until healthy. Kubernetes can be configured to restart pods based on prolonged readiness failures.
 - **FR-007**: System MUST log all health state transitions with timestamp, mount path, and previous/new state.
 - **FR-008**: System MUST log all health endpoint responses (probe queries) with timestamp and result.
 - **FR-009**: System MUST handle SIGTERM and SIGINT signals for graceful shutdown.

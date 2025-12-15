@@ -38,6 +38,8 @@ func New(mounts []*health.Mount, port int, logger *slog.Logger) *Server {
 	s.server = &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
 		Handler:           mux,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -69,7 +71,9 @@ func (s *Server) handleLiveness(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "alive"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "alive"}); err != nil {
+		s.logger.Error("failed to encode liveness response", "error", err)
+	}
 }
 
 // handleReadiness responds to readiness probe requests.
@@ -93,10 +97,14 @@ func (s *Server) handleReadiness(w http.ResponseWriter, r *http.Request) {
 
 	if allHealthy {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ready"})
+		if err := json.NewEncoder(w).Encode(map[string]string{"status": "ready"}); err != nil {
+			s.logger.Error("failed to encode readiness response", "error", err)
+		}
 	} else {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{"status": "not_ready"})
+		if err := json.NewEncoder(w).Encode(map[string]string{"status": "not_ready"}); err != nil {
+			s.logger.Error("failed to encode readiness response", "error", err)
+		}
 	}
 }
 
@@ -162,5 +170,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.logger.Error("failed to encode status response", "error", err)
+	}
 }

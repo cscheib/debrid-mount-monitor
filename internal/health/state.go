@@ -2,6 +2,7 @@
 package health
 
 import (
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -51,10 +52,7 @@ type Mount struct {
 func NewMount(path, canaryFile string) *Mount {
 	canaryPath := path
 	if canaryFile != "" {
-		if path[len(path)-1] != '/' {
-			canaryPath += "/"
-		}
-		canaryPath += canaryFile
+		canaryPath = filepath.Join(path, canaryFile)
 	}
 	return &Mount{
 		Path:       path,
