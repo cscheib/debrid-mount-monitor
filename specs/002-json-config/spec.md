@@ -58,7 +58,7 @@ As a system administrator, I want the application to validate my configuration f
 
 1. **Given** a JSON configuration file with invalid JSON syntax, **When** the application attempts to load it, **Then** the application fails to start and displays a clear error message indicating the parse error
 2. **Given** a JSON configuration file with a mount missing the required path field, **When** the application attempts to load it, **Then** the application fails to start with a validation error specifying which mount is misconfigured
-3. **Given** a JSON configuration file with an invalid failure threshold (zero or negative), **When** the application attempts to load it, **Then** the application fails to start with a validation error
+3. **Given** a JSON configuration file with an invalid failure threshold (negative value), **When** the application attempts to load it, **Then** the application fails to start with a validation error (note: zero means "use global default")
 
 ---
 
@@ -105,7 +105,7 @@ As a system administrator, I want the application to validate my configuration f
 ### Measurable Outcomes
 
 - **SC-001**: Administrators can configure a multi-mount setup with 10+ mounts using a single configuration file
-- **SC-002**: Application startup with a valid configuration file completes within existing startup time expectations
+- **SC-002**: Application startup with a valid configuration file completes within 5 seconds (configuration loading < 100ms)
 - **SC-003**: Configuration errors are detected and reported at startup, preventing runtime failures due to misconfiguration
 - **SC-004**: Administrators can identify which mount experienced an issue by its configured name in logs and health status responses
 - **SC-005**: Existing deployments using only environment variables or CLI flags continue to work without modification (100% backwards compatibility)

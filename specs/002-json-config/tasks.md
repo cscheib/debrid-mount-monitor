@@ -94,6 +94,7 @@
 - [ ] T026a [US2] Update monitor.go checkAll() to pass mount.FailureThreshold to UpdateState instead of global threshold
 - [ ] T027 [US2] Verify Mount.UpdateState receives per-mount FailureThreshold via monitor.checkMount() parameter in internal/health/state.go
 - [ ] T028 [US2] Include mount Name in MountStatusResponse in internal/server/server.go
+  - Note: FR-008 test coverage provided by TestMountNameInStatusResponse in tests/unit/config_file_test.go
 
 **Checkpoint**: User Story 2 complete - each mount can have independent canary file and failure threshold
 

@@ -170,7 +170,7 @@ tests/
 
 **Key Changes**:
 1. Validate JSON structure and required fields
-2. Validate per-mount settings (threshold > 0, path required)
+2. Validate per-mount settings (threshold >= 0 where 0 = use default, path required)
 3. Log config source, all mount paths, and settings at info level
 4. Include mount name in health status responses
 
