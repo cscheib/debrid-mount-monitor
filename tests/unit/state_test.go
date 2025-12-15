@@ -9,13 +9,19 @@ import (
 )
 
 func TestNewMount(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("test-mount", "/mnt/test", ".health-check", 3)
 
+	if mount.Name != "test-mount" {
+		t.Errorf("expected name 'test-mount', got %q", mount.Name)
+	}
 	if mount.Path != "/mnt/test" {
 		t.Errorf("expected path '/mnt/test', got %q", mount.Path)
 	}
 	if mount.CanaryPath != "/mnt/test/.health-check" {
 		t.Errorf("expected canary path '/mnt/test/.health-check', got %q", mount.CanaryPath)
+	}
+	if mount.FailureThreshold != 3 {
+		t.Errorf("expected failure threshold 3, got %d", mount.FailureThreshold)
 	}
 	if mount.GetStatus() != health.StatusUnknown {
 		t.Errorf("expected initial status Unknown, got %v", mount.GetStatus())
@@ -26,7 +32,7 @@ func TestNewMount(t *testing.T) {
 }
 
 func TestNewMount_TrailingSlash(t *testing.T) {
-	mount := health.NewMount("/mnt/test/", ".health-check")
+	mount := health.NewMount("", "/mnt/test/", ".health-check", 3)
 
 	if mount.CanaryPath != "/mnt/test/.health-check" {
 		t.Errorf("expected canary path '/mnt/test/.health-check', got %q", mount.CanaryPath)
@@ -54,7 +60,7 @@ func TestHealthStatus_String(t *testing.T) {
 }
 
 func TestMount_UpdateState_SuccessfulCheck(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	result := &health.CheckResult{
@@ -82,7 +88,7 @@ func TestMount_UpdateState_SuccessfulCheck(t *testing.T) {
 }
 
 func TestMount_UpdateState_FailedCheck_Degraded(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	// First failure - should go to Degraded
@@ -108,7 +114,7 @@ func TestMount_UpdateState_FailedCheck_Degraded(t *testing.T) {
 }
 
 func TestMount_UpdateState_FailedCheck_Unhealthy(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	// Simulate 3 consecutive failures
@@ -132,7 +138,7 @@ func TestMount_UpdateState_FailedCheck_Unhealthy(t *testing.T) {
 }
 
 func TestMount_UpdateState_RecoveryFromUnhealthy(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	// Put mount into unhealthy state
@@ -177,7 +183,7 @@ func TestMount_UpdateState_RecoveryFromUnhealthy(t *testing.T) {
 }
 
 func TestMount_UpdateState_NoTransitionOnSameState(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	// First successful check - transition to Healthy
@@ -206,7 +212,7 @@ func TestMount_UpdateState_NoTransitionOnSameState(t *testing.T) {
 }
 
 func TestMount_Snapshot(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	// Set some state
@@ -236,7 +242,7 @@ func TestMount_Snapshot(t *testing.T) {
 }
 
 func TestMount_TransientFailure_NoRestart(t *testing.T) {
-	mount := health.NewMount("/mnt/test", ".health-check")
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	debounceThreshold := 3
 
 	// Start healthy

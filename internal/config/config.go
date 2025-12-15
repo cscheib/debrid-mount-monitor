@@ -11,11 +11,23 @@ import (
 	"time"
 )
 
+// MountConfig holds per-mount configuration settings.
+type MountConfig struct {
+	Name             string // Human-readable identifier (optional)
+	Path             string // Filesystem path to mount point (required)
+	CanaryFile       string // Relative path to canary file (optional, inherits global)
+	FailureThreshold int    // Consecutive failures before unhealthy (0 = use global debounceThreshold)
+}
+
 // Config holds all runtime configuration for the mount monitor.
 type Config struct {
+	// Config file tracking
+	ConfigFile string // Path to loaded config file ("" if none)
+
 	// Mount configuration
-	MountPaths []string // Paths to monitor
-	CanaryFile string   // Relative path to canary file within each mount
+	MountPaths []string      // Paths to monitor (legacy, derived from Mounts)
+	Mounts     []MountConfig // Per-mount configurations
+	CanaryFile string        // Default canary file for all mounts
 
 	// Timing configuration
 	CheckInterval   time.Duration // Time between health checks
@@ -23,7 +35,7 @@ type Config struct {
 	ShutdownTimeout time.Duration // Max time for graceful shutdown
 
 	// Debounce configuration
-	DebounceThreshold int // Consecutive failures before unhealthy
+	DebounceThreshold int // Default consecutive failures before unhealthy
 
 	// Server configuration
 	HTTPPort int // Port for health endpoints
@@ -36,7 +48,9 @@ type Config struct {
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
+		ConfigFile:        "",
 		MountPaths:        []string{},
+		Mounts:            []MountConfig{},
 		CanaryFile:        ".health-check",
 		CheckInterval:     30 * time.Second,
 		ReadTimeout:       5 * time.Second,
@@ -48,12 +62,14 @@ func DefaultConfig() *Config {
 	}
 }
 
-// Load parses configuration from environment variables and command-line flags.
-// Flags take precedence over environment variables.
+// Load parses configuration from config file, environment variables, and command-line flags.
+// Precedence: Defaults → Config File → Environment Variables → CLI Flags
 func Load() (*Config, error) {
 	cfg := DefaultConfig()
 
 	// Define flags
+	configFile := flag.String("config", "", "Path to JSON configuration file")
+	flag.StringVar(configFile, "c", "", "Path to JSON configuration file (shorthand)")
 	mountPaths := flag.String("mount-paths", "", "Comma-separated list of mount paths to monitor")
 	canaryFile := flag.String("canary-file", "", "Relative path to canary file within each mount")
 	checkInterval := flag.Duration("check-interval", 0, "Time between health checks")
@@ -66,8 +82,15 @@ func Load() (*Config, error) {
 
 	flag.Parse()
 
-	// Load from environment variables first
-	if envVal := os.Getenv("MOUNT_PATHS"); envVal != "" {
+	// Load from config file (after defaults, before env vars)
+	if err := cfg.loadFromFile(*configFile); err != nil {
+		return nil, err
+	}
+
+	// Load from environment variables
+	// Note: MOUNT_PATHS only applies if no mounts were loaded from config file
+	// This preserves per-mount config from file while allowing env vars for legacy setups
+	if envVal := os.Getenv("MOUNT_PATHS"); envVal != "" && len(cfg.Mounts) == 0 {
 		cfg.MountPaths = parseMountPaths(envVal)
 	}
 	if envVal := os.Getenv("CANARY_FILE"); envVal != "" {
@@ -106,8 +129,10 @@ func Load() (*Config, error) {
 	}
 
 	// Override with flags if provided
+	// Note: --mount-paths flag takes highest precedence and clears config file mounts
 	if *mountPaths != "" {
 		cfg.MountPaths = parseMountPaths(*mountPaths)
+		cfg.Mounts = nil // Clear config file mounts - CLI flag takes precedence
 	}
 	if *canaryFile != "" {
 		cfg.CanaryFile = *canaryFile
@@ -146,8 +171,27 @@ func Load() (*Config, error) {
 func (c *Config) Validate() error {
 	var errs []string
 
-	if len(c.MountPaths) == 0 {
+	// Check for mounts - either via Mounts or legacy MountPaths
+	if len(c.Mounts) == 0 && len(c.MountPaths) == 0 {
 		errs = append(errs, "at least one mount path is required")
+	}
+
+	// Validate individual mount configs
+	for i, m := range c.Mounts {
+		if m.Path == "" {
+			if m.Name != "" {
+				errs = append(errs, fmt.Sprintf("mount[%d] %q: path is required", i, m.Name))
+			} else {
+				errs = append(errs, fmt.Sprintf("mount[%d]: path is required", i))
+			}
+		}
+		if m.FailureThreshold < 0 {
+			if m.Name != "" {
+				errs = append(errs, fmt.Sprintf("mount[%d] %q: failureThreshold must be >= 0", i, m.Name))
+			} else {
+				errs = append(errs, fmt.Sprintf("mount[%d]: failureThreshold must be >= 0", i))
+			}
+		}
 	}
 
 	if c.CheckInterval < time.Second {

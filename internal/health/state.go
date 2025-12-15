@@ -39,26 +39,42 @@ func (s HealthStatus) String() string {
 
 // Mount represents a single mount point being monitored.
 type Mount struct {
-	Path         string       // Absolute path to mount point
-	CanaryPath   string       // Full path to canary file
-	Status       HealthStatus // Current health status
-	LastCheck    time.Time    // Timestamp of last health check
-	LastError    error        // Last error encountered (nil if healthy)
-	FailureCount int          // Consecutive failure count for debounce
-	mu           sync.RWMutex // Protects all fields
+	Name             string       // Human-readable identifier (optional)
+	Path             string       // Absolute path to mount point
+	CanaryPath       string       // Full path to canary file
+	FailureThreshold int          // Consecutive failures before unhealthy (per-mount)
+	Status           HealthStatus // Current health status
+	LastCheck        time.Time    // Timestamp of last health check
+	LastError        error        // Last error encountered (nil if healthy)
+	FailureCount     int          // Consecutive failure count for debounce
+	mu               sync.RWMutex // Protects all fields
 }
 
 // NewMount creates a new Mount instance.
-func NewMount(path, canaryFile string) *Mount {
+// Parameters:
+//   - name: Human-readable identifier (can be empty)
+//   - path: Filesystem path to mount point
+//   - canaryFile: Relative path to canary file within mount
+//   - failureThreshold: Consecutive failures before marking unhealthy
+func NewMount(name, path, canaryFile string, failureThreshold int) *Mount {
 	canaryPath := path
 	if canaryFile != "" {
 		canaryPath = filepath.Join(path, canaryFile)
 	}
 	return &Mount{
-		Path:       path,
-		CanaryPath: canaryPath,
-		Status:     StatusUnknown,
+		Name:             name,
+		Path:             path,
+		CanaryPath:       canaryPath,
+		FailureThreshold: failureThreshold,
+		Status:           StatusUnknown,
 	}
+}
+
+// GetName returns the mount name thread-safely.
+func (m *Mount) GetName() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.Name
 }
 
 // GetStatus returns the current health status thread-safely.
@@ -156,6 +172,7 @@ func (m *Mount) UpdateState(result *CheckResult, debounceThreshold int) *StateTr
 
 // Snapshot returns a thread-safe copy of mount state for reporting.
 type MountSnapshot struct {
+	Name         string
 	Path         string
 	Status       HealthStatus
 	LastCheck    time.Time
@@ -174,6 +191,7 @@ func (m *Mount) Snapshot() MountSnapshot {
 	}
 
 	return MountSnapshot{
+		Name:         m.Name,
 		Path:         m.Path,
 		Status:       m.Status,
 		LastCheck:    m.LastCheck,

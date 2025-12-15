@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/cscheib/debrid-mount-monitor/config-schema.json",
+  "title": "Mount Monitor Configuration",
+  "description": "Configuration file schema for debrid-mount-monitor",
+  "type": "object",
+  "properties": {
+    "checkInterval": {
+      "type": "string",
+      "description": "Time between health checks (Go duration format: 30s, 5m, 1h)",
+      "default": "30s",
+      "examples": ["30s", "1m", "5m"]
+    },
+    "readTimeout": {
+      "type": "string",
+      "description": "Timeout for canary file read operations",
+      "default": "5s",
+      "examples": ["5s", "10s"]
+    },
+    "shutdownTimeout": {
+      "type": "string",
+      "description": "Maximum time for graceful shutdown",
+      "default": "30s",
+      "examples": ["30s", "1m"]
+    },
+    "debounceThreshold": {
+      "type": "integer",
+      "description": "Default consecutive failures before marking mount unhealthy",
+      "default": 3,
+      "minimum": 1
+    },
+    "httpPort": {
+      "type": "integer",
+      "description": "Port for HTTP health check endpoints",
+      "default": 8080,
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "logLevel": {
+      "type": "string",
+      "description": "Logging verbosity level",
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info"
+    },
+    "logFormat": {
+      "type": "string",
+      "description": "Log output format",
+      "enum": ["json", "text"],
+      "default": "json"
+    },
+    "canaryFile": {
+      "type": "string",
+      "description": "Default canary file path relative to mount point",
+      "default": ".health-check"
+    },
+    "mounts": {
+      "type": "array",
+      "description": "Array of mount configurations to monitor",
+      "items": {
+        "$ref": "#/definitions/mountConfig"
+      },
+      "minItems": 1
+    }
+  },
+  "definitions": {
+    "mountConfig": {
+      "type": "object",
+      "description": "Configuration for a single mount point",
+      "required": ["path"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable identifier for the mount (used in logs and status)",
+          "examples": ["movies", "tv-shows", "music"]
+        },
+        "path": {
+          "type": "string",
+          "description": "Filesystem path to the mount point",
+          "minLength": 1,
+          "examples": ["/mnt/movies", "/mnt/tv", "/data/media"]
+        },
+        "canaryFile": {
+          "type": "string",
+          "description": "Canary file path relative to this mount (overrides global default)",
+          "examples": [".health-check", ".ready", "health.txt"]
+        },
+        "failureThreshold": {
+          "type": "integer",
+          "description": "Consecutive failures before marking this mount unhealthy (overrides global default)",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "checkInterval": "30s",
+      "logLevel": "info",
+      "mounts": [
+        {
+          "name": "movies",
+          "path": "/mnt/movies",
+          "canaryFile": ".health-check",
+          "failureThreshold": 3
+        },
+        {
+          "name": "tv",
+          "path": "/mnt/tv"
+        }
+      ]
+    }
+  ]
+}

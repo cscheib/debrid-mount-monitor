@@ -75,14 +75,25 @@ func (m *Monitor) checkAll(ctx context.Context) {
 
 func (m *Monitor) checkMount(ctx context.Context, mount *health.Mount) {
 	result := m.checker.Check(ctx, mount)
-	transition := mount.UpdateState(result, m.debounceThreshold)
+	// Use per-mount threshold if set (>0), otherwise fall back to global threshold.
+	// A threshold of 0 is a sentinel meaning "use default" - this is documented in
+	// config.MountConfig and allows omitting the field in JSON config files.
+	threshold := mount.FailureThreshold
+	if threshold == 0 {
+		threshold = m.debounceThreshold
+	}
+	transition := mount.UpdateState(result, threshold)
 
-	// Log check result
+	// Log check result - include name if available for easier identification
 	logAttrs := []any{
 		"path", mount.Path,
 		"success", result.Success,
 		"duration", result.Duration.String(),
 		"status", mount.GetStatus().String(),
+	}
+
+	if mount.Name != "" {
+		logAttrs = append(logAttrs, "name", mount.Name)
 	}
 
 	if result.Error != nil {
@@ -95,13 +106,17 @@ func (m *Monitor) checkMount(ctx context.Context, mount *health.Mount) {
 		m.logger.Warn("health check failed", logAttrs...)
 	}
 
-	// Log state transitions
+	// Log state transitions - include name if available
 	if transition != nil {
-		m.logger.Info("mount state changed",
+		transitionAttrs := []any{
 			"path", mount.Path,
 			"previous_state", transition.PreviousState.String(),
 			"new_state", transition.NewState.String(),
 			"trigger", transition.Trigger,
-		)
+		}
+		if mount.Name != "" {
+			transitionAttrs = append(transitionAttrs, "name", mount.Name)
+		}
+		m.logger.Info("mount state changed", transitionAttrs...)
 	}
 }

@@ -15,7 +15,7 @@ import (
 )
 
 func TestGracefulShutdown_ServerStops(t *testing.T) {
-	mount := health.NewMount("/tmp", ".nonexistent")
+	mount := health.NewMount("", "/tmp", ".nonexistent", 3)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	// Use a high port to avoid conflicts
@@ -44,7 +44,7 @@ func TestGracefulShutdown_MonitorStops(t *testing.T) {
 		t.Fatalf("failed to create canary file: %v", err)
 	}
 
-	mount := health.NewMount(tmpDir, ".health-check")
+	mount := health.NewMount("", tmpDir, ".health-check", 3)
 	checker := health.NewChecker(5 * time.Second)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
@@ -75,7 +75,7 @@ func TestGracefulShutdown_MonitorStops(t *testing.T) {
 }
 
 func TestGracefulShutdown_InFlightRequests(t *testing.T) {
-	mount := health.NewMount("/tmp", ".nonexistent")
+	mount := health.NewMount("", "/tmp", ".nonexistent", 3)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	srv := server.New([]*health.Mount{mount}, 18081, logger)

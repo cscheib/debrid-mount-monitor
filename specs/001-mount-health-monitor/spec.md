@@ -108,7 +108,7 @@ As a container orchestrator (Kubernetes, Docker), I need the monitor to shut dow
 - **FR-008**: System MUST log all health endpoint responses (probe queries) with timestamp and result.
 - **FR-009**: System MUST handle SIGTERM and SIGINT signals for graceful shutdown.
 - **FR-010**: System MUST complete graceful shutdown within 30 seconds.
-- **FR-011**: System MUST accept all configuration via environment variables or command-line flags.
+- **FR-011**: System MUST accept all configuration via environment variables or command-line flags. *(Extended by [002-json-config](../002-json-config/spec.md): adds JSON config file support with per-mount settings)*
 - **FR-012**: System MUST output logs to stdout (info/debug) and stderr (errors/warnings).
 - **FR-013**: System MUST support structured (JSON) log format.
 - **FR-014**: System MUST exit with code 0 on successful shutdown and non-zero on errors.
@@ -118,14 +118,14 @@ As a container orchestrator (Kubernetes, Docker), I need the monitor to shut dow
 
 ### Key Entities
 
-- **Mount**: A filesystem path to monitor. Attributes: path, canary file path, health status (unknown/healthy/degraded/unhealthy), last check time, consecutive failure count, last error message. States: unknown (initial, before first check), healthy (canary readable), degraded (failing but within debounce threshold), unhealthy (failing past debounce threshold).
+- **Mount**: A filesystem path to monitor. Attributes: path, canary file path, health status (unknown/healthy/degraded/unhealthy), last check time, consecutive failure count, last error message. States: unknown (initial, before first check), healthy (canary readable), degraded (failing but within debounce threshold), unhealthy (failing past debounce threshold). *(Extended by [002-json-config](../002-json-config/spec.md): adds name, per-mount canary file, and per-mount failure threshold)*
 - **Health Check Result**: The outcome of a single health check. Attributes: mount path, timestamp, status, error message (if any).
 - **Health State Transition**: A change in mount health status. Attributes: mount path, timestamp, previous state, new state, trigger (check result or recovery).
 - **Probe Response**: The response to a Kubernetes probe request. Attributes: probe type (liveness/readiness), timestamp, HTTP status code, aggregate mount health.
 
 ### Configuration Options
 
-All configuration is provided via environment variables or command-line flags. Flags take precedence over environment variables.
+All configuration is provided via environment variables or command-line flags. Flags take precedence over environment variables. *(Extended by [002-json-config](../002-json-config/spec.md): adds JSON config file with precedence Defaults → Config File → Env Vars → CLI Flags)*
 
 | Setting | Env Var | Flag | Default | Description |
 |---------|---------|------|---------|-------------|

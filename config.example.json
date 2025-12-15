@@ -1,0 +1,23 @@
+{
+  "checkInterval": "30s",
+  "readTimeout": "5s",
+  "shutdownTimeout": "30s",
+  "debounceThreshold": 3,
+  "httpPort": 8080,
+  "logLevel": "info",
+  "logFormat": "json",
+  "canaryFile": ".health-check",
+  "mounts": [
+    {
+      "name": "movies",
+      "path": "/mnt/movies",
+      "canaryFile": ".health-check",
+      "failureThreshold": 3
+    },
+    {
+      "name": "tv",
+      "path": "/mnt/tv",
+      "failureThreshold": 5
+    }
+  ]
+}
