@@ -24,12 +24,12 @@
 
 **Purpose**: Project initialization, Go module setup, and CI configuration
 
-- [ ] T001 Create project directory structure per plan.md (cmd/, internal/, .github/)
-- [ ] T002 Initialize Go module with `go mod init` in repository root
-- [ ] T003 [P] Create Dockerfile for multi-stage build in Dockerfile (repository root)
-- [ ] T004 [P] Create debug Dockerfile with Alpine base in Dockerfile.debug (repository root)
-- [ ] T005 [P] Create GitHub Actions CI workflow in .github/workflows/ci.yml (FR-016: build ARM64/AMD64, run tests)
-- [ ] T006 [P] Create .gitignore for Go project in repository root
+- [x] T001 Create project directory structure per plan.md (cmd/, internal/, .github/)
+- [x] T002 Initialize Go module with `go mod init` in repository root
+- [x] T003 [P] Create Dockerfile for multi-stage build in Dockerfile (repository root)
+- [x] T004 [P] Create debug Dockerfile with Alpine base in Dockerfile.debug (repository root)
+- [x] T005 [P] Create GitHub Actions CI workflow in .github/workflows/ci.yml (FR-016: build ARM64/AMD64, run tests)
+- [x] T006 [P] Create .gitignore for Go project in repository root
 
 ---
 
@@ -39,12 +39,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T007 Implement Config struct and parsing in internal/config/config.go (FR-011: env vars + flags)
-- [ ] T008 Implement config validation rules in internal/config/config.go
-- [ ] T009 [P] Implement HealthStatus enum in internal/health/state.go
-- [ ] T010 [P] Implement Mount struct in internal/health/state.go
-- [ ] T011 Implement structured logging setup in cmd/mount-monitor/main.go (FR-012, FR-013: stdout/stderr, JSON format)
-- [ ] T012 [P] Write unit tests for config parsing in tests/unit/config_test.go
+- [x] T007 Implement Config struct and parsing in internal/config/config.go (FR-011: env vars + flags)
+- [x] T008 Implement config validation rules in internal/config/config.go
+- [x] T009 [P] Implement HealthStatus enum in internal/health/state.go
+- [x] T010 [P] Implement Mount struct in internal/health/state.go
+- [x] T011 Implement structured logging setup in cmd/mount-monitor/main.go (FR-012, FR-013: stdout/stderr, JSON format)
+- [x] T012 [P] Write unit tests for config parsing in tests/unit/config_test.go
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -58,18 +58,18 @@
 
 ### Tests for User Story 1
 
-- [ ] T013 [P] [US1] Write unit tests for health checker in tests/unit/checker_test.go
-- [ ] T014 [P] [US1] Write unit tests for state management in tests/unit/state_test.go
+- [x] T013 [P] [US1] Write unit tests for health checker in tests/unit/checker_test.go
+- [x] T014 [P] [US1] Write unit tests for state management in tests/unit/state_test.go
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implement CheckResult struct in internal/health/state.go
-- [ ] T016 [US1] Implement StateTransition struct in internal/health/state.go
-- [ ] T017 [US1] Implement canary file health check with timeout in internal/health/checker.go (FR-002: read canary file, 5s default timeout)
-- [ ] T018 [US1] Implement debounce/threshold logic in internal/health/state.go (FR-004: 3 consecutive failures)
-- [ ] T019 [US1] Implement state transition detection and logging in internal/health/state.go (FR-007: log transitions)
-- [ ] T020 [US1] Implement Monitor struct and health check loop in internal/monitor/monitor.go (FR-001, FR-003: multiple mounts, 30s interval)
-- [ ] T021 [US1] Wire up monitor in main.go entry point in cmd/mount-monitor/main.go
+- [x] T015 [US1] Implement CheckResult struct in internal/health/state.go
+- [x] T016 [US1] Implement StateTransition struct in internal/health/state.go
+- [x] T017 [US1] Implement canary file health check with timeout in internal/health/checker.go (FR-002: read canary file, 5s default timeout)
+- [x] T018 [US1] Implement debounce/threshold logic in internal/health/state.go (FR-004: 3 consecutive failures)
+- [x] T019 [US1] Implement state transition detection and logging in internal/health/state.go (FR-007: log transitions)
+- [x] T020 [US1] Implement Monitor struct and health check loop in internal/monitor/monitor.go (FR-001, FR-003: multiple mounts, 30s interval)
+- [x] T021 [US1] Wire up monitor in main.go entry point in cmd/mount-monitor/main.go
 
 **Checkpoint**: User Story 1 complete - monitor detects and logs mount health changes
 
@@ -85,15 +85,15 @@
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Write unit tests for liveness endpoint in tests/unit/server_test.go
+- [x] T022 [P] [US2] Write unit tests for liveness endpoint in tests/unit/server_test.go
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Implement ProbeResponse and MountStatus structs in internal/server/server.go
-- [ ] T024 [US2] Implement HTTP server with /healthz/live endpoint in internal/server/server.go (FR-005, FR-015: HTTP 200/503)
-- [ ] T025 [US2] Implement liveness probe logic (HEALTHY/DEGRADED=200, UNHEALTHY=503) in internal/server/server.go
-- [ ] T026 [US2] Add probe response logging in internal/server/server.go (FR-008: log probe queries)
-- [ ] T027 [US2] Wire up HTTP server in main.go in cmd/mount-monitor/main.go
+- [x] T023 [US2] Implement ProbeResponse and MountStatus structs in internal/server/server.go
+- [x] T024 [US2] Implement HTTP server with /healthz/live endpoint in internal/server/server.go (FR-005, FR-015: HTTP 200/503)
+- [x] T025 [US2] Implement liveness probe logic (HEALTHY/DEGRADED=200, UNHEALTHY=503) in internal/server/server.go
+- [x] T026 [US2] Add probe response logging in internal/server/server.go (FR-008: log probe queries)
+- [x] T027 [US2] Wire up HTTP server in main.go in cmd/mount-monitor/main.go
 
 **Checkpoint**: User Story 2 complete - liveness probe triggers pod restart on confirmed unhealthy state
 
@@ -109,12 +109,12 @@
 
 ### Tests for User Story 3
 
-- [ ] T028 [P] [US3] Write unit tests for readiness endpoint in tests/unit/server_test.go (extend existing)
+- [x] T028 [P] [US3] Write unit tests for readiness endpoint in tests/unit/server_test.go (extend existing)
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Implement /healthz/ready endpoint in internal/server/server.go (FR-006, FR-015: HTTP 200/503)
-- [ ] T030 [US3] Implement readiness probe logic (only HEALTHY=200, any other state=503) in internal/server/server.go
+- [x] T029 [US3] Implement /healthz/ready endpoint in internal/server/server.go (FR-006, FR-015: HTTP 200/503)
+- [x] T030 [US3] Implement readiness probe logic (only HEALTHY=200, any other state=503) in internal/server/server.go
 
 **Checkpoint**: User Story 3 complete - readiness probe gates service startup until all mounts healthy
 
@@ -134,11 +134,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T032 [US4] Implement signal handler for SIGTERM/SIGINT in cmd/mount-monitor/main.go (FR-009)
-- [ ] T033 [US4] Implement graceful HTTP server shutdown in internal/server/server.go
-- [ ] T034 [US4] Implement graceful monitor loop shutdown in internal/monitor/monitor.go
-- [ ] T035 [US4] Implement shutdown timeout (30s) and exit code handling in cmd/mount-monitor/main.go (FR-010, FR-014)
-- [ ] T036 [US4] Add shutdown logging in cmd/mount-monitor/main.go
+- [x] T032 [US4] Implement signal handler for SIGTERM/SIGINT in cmd/mount-monitor/main.go (FR-009)
+- [x] T033 [US4] Implement graceful HTTP server shutdown in internal/server/server.go
+- [x] T034 [US4] Implement graceful monitor loop shutdown in internal/monitor/monitor.go
+- [x] T035 [US4] Implement shutdown timeout (30s) and exit code handling in cmd/mount-monitor/main.go (FR-010, FR-014)
+- [x] T036 [US4] Add shutdown logging in cmd/mount-monitor/main.go
 
 **Checkpoint**: User Story 4 complete - service shuts down gracefully on termination signals
 
@@ -150,8 +150,8 @@
 
 - [x] T037 [P] Write end-to-end integration test in tests/unit/monitor_test.go
 - [ ] T038 Validate quickstart.md scenarios work correctly
-- [ ] T039 [P] Update README.md with build and usage instructions
-- [ ] T040 Run full test suite and verify CI passes
+- [x] T039 [P] Update README.md with build and usage instructions
+- [x] T040 Run full test suite and verify CI passes
 - [ ] T041 Build and verify container image size (<20MB target)
 
 ---

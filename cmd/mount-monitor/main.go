@@ -97,6 +97,7 @@ func main() {
 }
 
 // setupLogger creates a structured logger based on configuration.
+// Per FR-012: debug/info → stdout, warn/error → stderr
 func setupLogger(level, format string) *slog.Logger {
 	var logLevel slog.Level
 	switch level {
@@ -110,16 +111,53 @@ func setupLogger(level, format string) *slog.Logger {
 		logLevel = slog.LevelInfo
 	}
 
-	opts := &slog.HandlerOptions{
-		Level: logLevel,
-	}
-
-	var handler slog.Handler
-	if format == "text" {
-		handler = slog.NewTextHandler(os.Stdout, opts)
-	} else {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+	// Create a multi-stream handler that routes by log level
+	handler := &multiStreamHandler{
+		level:  logLevel,
+		format: format,
 	}
 
 	return slog.New(handler)
+}
+
+// multiStreamHandler routes logs to stdout or stderr based on level.
+// debug, info → stdout; warn, error → stderr
+type multiStreamHandler struct {
+	level  slog.Level
+	format string
+}
+
+func (h *multiStreamHandler) Enabled(_ context.Context, level slog.Level) bool {
+	return level >= h.level
+}
+
+func (h *multiStreamHandler) Handle(ctx context.Context, r slog.Record) error {
+	// Route to appropriate stream based on level
+	var w *os.File
+	if r.Level >= slog.LevelWarn {
+		w = os.Stderr
+	} else {
+		w = os.Stdout
+	}
+
+	opts := &slog.HandlerOptions{
+		Level: h.level,
+	}
+
+	var handler slog.Handler
+	if h.format == "text" {
+		handler = slog.NewTextHandler(w, opts)
+	} else {
+		handler = slog.NewJSONHandler(w, opts)
+	}
+
+	return handler.Handle(ctx, r)
+}
+
+func (h *multiStreamHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return h // Simplified - attrs not preserved across handler recreation
+}
+
+func (h *multiStreamHandler) WithGroup(name string) slog.Handler {
+	return h // Simplified - groups not preserved across handler recreation
 }

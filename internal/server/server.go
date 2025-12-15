@@ -61,25 +61,49 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
 }
 
+// Handler returns the HTTP handler for testing purposes.
+func (s *Server) Handler() http.Handler {
+	return s.server.Handler
+}
+
 // handleLiveness responds to liveness probe requests.
-// Returns 200 OK if the service is running (always alive unless server is down).
+// Returns 200 OK if no mount is UNHEALTHY (past debounce threshold).
+// Per spec: HEALTHY, DEGRADED, and UNKNOWN states return 200; only UNHEALTHY returns 503.
 func (s *Server) handleLiveness(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	s.logger.Debug("probe request", "endpoint", "/healthz/live", "status", http.StatusOK, "result", "alive")
+	// Check if any mount is confirmed unhealthy (past debounce threshold)
+	allAlive := true
+	for _, mount := range s.mounts {
+		status := mount.GetStatus()
+		// Only UNHEALTHY (past debounce) triggers liveness failure
+		if status == health.StatusUnhealthy {
+			allAlive = false
+			break
+		}
+	}
 
+	response := s.buildProbeResponse(allAlive)
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(map[string]string{"status": "alive"}); err != nil {
+
+	if allAlive {
+		s.logger.Debug("probe request", "endpoint", "/healthz/live", "status", http.StatusOK, "result", "alive")
+		w.WriteHeader(http.StatusOK)
+	} else {
+		s.logger.Warn("probe request", "endpoint", "/healthz/live", "status", http.StatusServiceUnavailable, "result", "unhealthy")
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		s.logger.Error("failed to encode liveness response", "error", err)
 	}
 }
 
 // handleReadiness responds to readiness probe requests.
-// Returns 200 OK if all mounts are healthy, 503 Service Unavailable otherwise.
+// Returns 200 OK only if ALL mounts are HEALTHY, 503 Service Unavailable otherwise.
+// Per spec: DEGRADED, UNHEALTHY, and UNKNOWN states all return 503.
 func (s *Server) handleReadiness(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -89,26 +113,25 @@ func (s *Server) handleReadiness(w http.ResponseWriter, r *http.Request) {
 	allHealthy := true
 	for _, mount := range s.mounts {
 		status := mount.GetStatus()
-		if status == health.StatusUnhealthy {
+		// Only HEALTHY state is considered ready - DEGRADED, UNHEALTHY, and UNKNOWN all fail
+		if status != health.StatusHealthy {
 			allHealthy = false
 			break
 		}
 	}
 
+	response := s.buildProbeResponse(allHealthy)
 	w.Header().Set("Content-Type", "application/json")
 
 	if allHealthy {
 		s.logger.Debug("probe request", "endpoint", "/healthz/ready", "status", http.StatusOK, "result", "ready")
 		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(map[string]string{"status": "ready"}); err != nil {
-			s.logger.Error("failed to encode readiness response", "error", err)
-		}
 	} else {
 		s.logger.Info("probe request", "endpoint", "/healthz/ready", "status", http.StatusServiceUnavailable, "result", "not_ready")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		if err := json.NewEncoder(w).Encode(map[string]string{"status": "not_ready"}); err != nil {
-			s.logger.Error("failed to encode readiness response", "error", err)
-		}
+	}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.logger.Error("failed to encode readiness response", "error", err)
 	}
 }
 
@@ -122,27 +145,23 @@ type MountStatusResponse struct {
 }
 
 // StatusResponse represents the overall status response.
+// This matches the OpenAPI ProbeResponse schema.
 type StatusResponse struct {
-	Status string                `json:"status"`
-	Mounts []MountStatusResponse `json:"mounts"`
+	Status    string                `json:"status"`
+	Timestamp string                `json:"timestamp"`
+	Mounts    []MountStatusResponse `json:"mounts"`
 }
 
-// handleStatus responds with detailed status of all mounts.
-func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
+// buildProbeResponse creates a response that matches the OpenAPI ProbeResponse schema.
+func (s *Server) buildProbeResponse(isHealthy bool) StatusResponse {
+	status := "healthy"
+	if !isHealthy {
+		status = "unhealthy"
 	}
 
-	overallHealthy := true
 	mountStatuses := make([]MountStatusResponse, len(s.mounts))
-
 	for i, mount := range s.mounts {
 		snapshot := mount.Snapshot()
-
-		if snapshot.Status == health.StatusUnhealthy {
-			overallHealthy = false
-		}
 
 		lastCheck := ""
 		if !snapshot.LastCheck.IsZero() {
@@ -158,22 +177,38 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	overallStatus := "healthy"
-	if !overallHealthy {
-		overallStatus = "unhealthy"
+	return StatusResponse{
+		Status:    status,
+		Timestamp: time.Now().Format(time.RFC3339),
+		Mounts:    mountStatuses,
+	}
+}
+
+// handleStatus responds with detailed status of all mounts.
+// Uses the same logic as readiness: any non-HEALTHY mount results in 503.
+func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
 
-	response := StatusResponse{
-		Status: overallStatus,
-		Mounts: mountStatuses,
+	// Check if all mounts are healthy (same logic as readiness)
+	overallHealthy := true
+	for _, mount := range s.mounts {
+		if mount.GetStatus() != health.StatusHealthy {
+			overallHealthy = false
+			break
+		}
 	}
 
+	response := s.buildProbeResponse(overallHealthy)
 	w.Header().Set("Content-Type", "application/json")
+
 	if overallHealthy {
-		s.logger.Debug("probe request", "endpoint", "/healthz/status", "status", http.StatusOK, "result", overallStatus)
+		s.logger.Debug("probe request", "endpoint", "/healthz/status", "status", http.StatusOK, "result", response.Status)
 		w.WriteHeader(http.StatusOK)
 	} else {
-		s.logger.Info("probe request", "endpoint", "/healthz/status", "status", http.StatusServiceUnavailable, "result", overallStatus)
+		s.logger.Info("probe request", "endpoint", "/healthz/status", "status", http.StatusServiceUnavailable, "result", response.Status)
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
