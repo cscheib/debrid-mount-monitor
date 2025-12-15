@@ -188,9 +188,17 @@ func (h *multiStreamHandler) Handle(ctx context.Context, r slog.Record) error {
 }
 
 func (h *multiStreamHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return h // Simplified - attrs not preserved across handler recreation
+	return &multiStreamHandler{
+		level:         h.level,
+		stdoutHandler: h.stdoutHandler.WithAttrs(attrs),
+		stderrHandler: h.stderrHandler.WithAttrs(attrs),
+	}
 }
 
 func (h *multiStreamHandler) WithGroup(name string) slog.Handler {
-	return h // Simplified - groups not preserved across handler recreation
+	return &multiStreamHandler{
+		level:         h.level,
+		stdoutHandler: h.stdoutHandler.WithGroup(name),
+		stderrHandler: h.stderrHandler.WithGroup(name),
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -665,9 +666,10 @@ func TestConfigFile_FileSizeLimit(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
-	// Create a config file just over 1MB (1MB + 1 byte)
-	// We'll create a valid JSON with a very long string
-	largeContent := `{"mounts":[{"path":"/mnt/test","name":"` + string(make([]byte, 1024*1024)) + `"}]}`
+	// Create a config file just over 1MB (1MB + overhead)
+	// Use strings.Repeat to create valid JSON content (null bytes are invalid in JSON strings)
+	padding := strings.Repeat("x", 1024*1024)
+	largeContent := `{"mounts":[{"path":"/mnt/test","name":"` + padding + `"}]}`
 
 	if err := os.WriteFile(configPath, []byte(largeContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -678,6 +680,11 @@ func TestConfigFile_FileSizeLimit(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected error for config file exceeding 1MB size limit")
+	}
+
+	// Verify the error message mentions the size limit
+	if err != nil && !strings.Contains(err.Error(), "exceeds maximum size") {
+		t.Errorf("expected error to mention size limit, got: %v", err)
 	}
 }
 

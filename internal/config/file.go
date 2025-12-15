@@ -10,9 +10,15 @@ import (
 	"time"
 )
 
-// maxConfigFileSize is the maximum allowed config file size (1MB).
-// This prevents DoS attacks via excessively large config files.
-const maxConfigFileSize = 1 << 20 // 1MB
+const (
+	// maxConfigFileSize is the maximum allowed config file size (1MB).
+	// This prevents DoS attacks via excessively large config files.
+	maxConfigFileSize = 1 << 20 // 1MB
+
+	// worldWritableBits is the Unix permission bit for "other write" access.
+	// Used to detect world-writable config files which are a security risk.
+	worldWritableBits = 0002
+)
 
 // Duration is a wrapper around time.Duration that supports JSON unmarshaling from strings.
 type Duration time.Duration
@@ -93,8 +99,11 @@ func (c *Config) loadFromFile(configPath string) error {
 	}
 
 	// Warn if config file is world-writable (security risk) - Unix only
+	// Note: This warning uses the default slog logger since it runs before setupLogger()
+	// in main(). The warning will use Go's default text format, which is acceptable for
+	// startup security warnings.
 	if runtime.GOOS != "windows" {
-		if info.Mode().Perm()&0002 != 0 {
+		if info.Mode().Perm()&worldWritableBits != 0 {
 			slog.Warn("config file is world-writable, which may be a security risk",
 				"path", filePath,
 				"mode", fmt.Sprintf("%04o", info.Mode().Perm()))
@@ -144,12 +153,6 @@ func validateFileConfig(fc *FileConfig) error {
 	}
 
 	return nil
-}
-
-// LoadFromFileForTesting is a test helper that exposes loadFromFile for testing.
-// It should only be used in tests.
-func (c *Config) LoadFromFileForTesting(configPath string) error {
-	return c.loadFromFile(configPath)
 }
 
 // applyFileConfig applies values from FileConfig to the runtime Config.
