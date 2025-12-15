@@ -75,9 +75,8 @@ tests/
     ├── shutdown_test.go  # Graceful shutdown tests
     └── state_test.go     # State management unit tests
 
-build/
-├── Dockerfile           # Multi-stage build, scratch base
-└── Dockerfile.debug     # Alpine-based for debugging
+Dockerfile               # Multi-stage build, scratch base
+Dockerfile.debug         # Alpine-based for debugging
 
 .github/
 └── workflows/
