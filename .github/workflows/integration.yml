@@ -71,19 +71,22 @@ jobs:
         run: |
           POD=$(kubectl -n mount-monitor-dev get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
           # Use main-app container (Alpine) since mount-monitor is scratch-based
-          kubectl -n mount-monitor-dev exec $POD -c main-app -- wget -q -O- http://localhost:8080/healthz/live | grep -q '"status":"ok"'
+          # /healthz/live returns HTTP 200 (no body) when healthy
+          kubectl -n mount-monitor-dev exec $POD -c main-app -- wget -q --spider http://localhost:8080/healthz/live
           echo "Liveness endpoint OK"
 
       - name: Test readiness endpoint
         run: |
           POD=$(kubectl -n mount-monitor-dev get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
-          kubectl -n mount-monitor-dev exec $POD -c main-app -- wget -q -O- http://localhost:8080/healthz/ready | grep -q '"status":"ok"'
+          # /healthz/ready returns HTTP 200 (no body) when healthy
+          kubectl -n mount-monitor-dev exec $POD -c main-app -- wget -q --spider http://localhost:8080/healthz/ready
           echo "Readiness endpoint OK"
 
       - name: Test status endpoint
         run: |
           POD=$(kubectl -n mount-monitor-dev get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
-          kubectl -n mount-monitor-dev exec $POD -c main-app -- wget -q -O- http://localhost:8080/healthz/status | grep -q '"healthy":true'
+          # /healthz/status returns JSON with "status":"healthy"
+          kubectl -n mount-monitor-dev exec $POD -c main-app -- wget -q -O- http://localhost:8080/healthz/status | grep -q '"status":"healthy"'
           echo "Status endpoint OK"
 
       - name: Show monitor logs on failure
