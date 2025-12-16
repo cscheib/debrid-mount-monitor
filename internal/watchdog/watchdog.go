@@ -224,12 +224,22 @@ func (w *Watchdog) OnMountUnhealthy(mountPath string, failureCount int) {
 		// Immediate restart - pass cancel channel
 		go w.triggerRestart(cancelCh)
 	} else {
-		// Delayed restart
+		// Delayed restart - use NewTimer to avoid race condition where
+		// AfterFunc callback fires before w.restartTimer is assigned
 		w.mu.Lock()
-		w.restartTimer = time.AfterFunc(w.config.RestartDelay, func() {
-			w.triggerRestart(cancelCh)
-		})
+		timer := time.NewTimer(w.config.RestartDelay)
+		w.restartTimer = timer
 		w.mu.Unlock()
+
+		go func() {
+			select {
+			case <-timer.C:
+				w.triggerRestart(cancelCh)
+			case <-cancelCh:
+				// Restart was cancelled, stop the timer
+				timer.Stop()
+			}
+		}()
 	}
 }
 
