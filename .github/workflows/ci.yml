@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Restrict permissions to minimum required (CodeQL fix)
+permissions:
+  contents: read
+
 env:
   GO_VERSION: "1.25"
 

@@ -10,6 +10,12 @@ import (
 	"github.com/chris/debrid-mount-monitor/internal/health"
 )
 
+// WatchdogNotifier is an interface for notifying the watchdog of mount state changes.
+type WatchdogNotifier interface {
+	OnMountUnhealthy(mountPath string, failureCount int)
+	OnMountHealthy(mountPath string)
+}
+
 // Monitor continuously checks mount health at configured intervals.
 type Monitor struct {
 	mounts            []*health.Mount
@@ -18,6 +24,7 @@ type Monitor struct {
 	debounceThreshold int
 	logger            *slog.Logger
 	wg                sync.WaitGroup
+	watchdog          WatchdogNotifier
 }
 
 // New creates a new Monitor instance.
@@ -29,6 +36,11 @@ func New(mounts []*health.Mount, checker *health.Checker, interval time.Duration
 		debounceThreshold: debounceThreshold,
 		logger:            logger,
 	}
+}
+
+// SetWatchdog sets the watchdog notifier for mount state changes.
+func (m *Monitor) SetWatchdog(w WatchdogNotifier) {
+	m.watchdog = w
 }
 
 // Start begins the health check loop. It runs until the context is cancelled.
@@ -118,5 +130,14 @@ func (m *Monitor) checkMount(ctx context.Context, mount *health.Mount) {
 			transitionAttrs = append(transitionAttrs, "name", mount.Name)
 		}
 		m.logger.Info("mount state changed", transitionAttrs...)
+
+		// Notify watchdog of state transitions
+		if m.watchdog != nil {
+			if transition.NewState == health.StatusUnhealthy {
+				m.watchdog.OnMountUnhealthy(mount.Path, mount.GetFailureCount())
+			} else if transition.NewState == health.StatusHealthy && transition.PreviousState == health.StatusUnhealthy {
+				m.watchdog.OnMountHealthy(mount.Path)
+			}
+		}
 	}
 }

@@ -30,5 +30,10 @@ data:
           "canaryFile": ".health-check",
           "failureThreshold": 3
         }
-      ]
+      ],
+      "watchdog": {
+        "enabled": true,
+        "restartDelay": "0s",
+        "maxRetries": 3
+      }
     }

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-mount-health-monitor`
 **Created**: 2025-12-14
-**Status**: Draft
+**Status**: Implemented ✅
 **Input**: User description: "A service that monitors debrid WebDAV mount health, restarts dependent services when unhealthy, and gates service startup until mounts are verified healthy"
 
 ## Clarifications
@@ -103,7 +103,7 @@ As a container orchestrator (Kubernetes, Docker), I need the monitor to shut dow
 - **FR-003**: System MUST perform health checks at a configurable interval (default: 30 seconds).
 - **FR-004**: System MUST implement debounce/threshold logic to prevent false positive restarts from transient failures (default: 3 consecutive failures before action).
 - **FR-005**: System MUST expose an HTTP liveness endpoint (/healthz/live) that returns HTTP 200 when the service process is running. This indicates the service is alive and able to respond to requests.
-- **FR-006**: System MUST expose an HTTP readiness endpoint (/healthz/ready) that returns HTTP 503 when any mount is unhealthy (past debounce threshold), preventing traffic routing until healthy. Kubernetes can be configured to restart pods based on prolonged readiness failures.
+- **FR-006**: System MUST expose an HTTP readiness endpoint (/healthz/ready) that returns HTTP 503 when any mount is unhealthy (past debounce threshold), preventing traffic routing until healthy. Kubernetes can be configured to restart pods based on prolonged readiness failures. *(Extended by [005-pod-restart-watchdog](../005-pod-restart-watchdog/spec.md): adds pod-level restart via Kubernetes API for full pod restarts)*
 - **FR-007**: System MUST log all health state transitions with timestamp, mount path, and previous/new state.
 - **FR-008**: System MUST log all health endpoint responses (probe queries) with timestamp and result.
 - **FR-009**: System MUST handle SIGTERM and SIGINT signals for graceful shutdown.

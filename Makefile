@@ -94,7 +94,7 @@ kind-create:
 		exit 1; \
 	fi
 	@echo "Creating KIND cluster '$(KIND_CLUSTER_NAME)'..."
-	kind create cluster --name $(KIND_CLUSTER_NAME) --config deploy/kind/kind-config.yaml
+	kind create cluster --name $(KIND_CLUSTER_NAME) --config deploy/kind-config.yaml
 	@echo ""
 	@echo "Cluster created successfully!"
 	@echo "Run 'make kind-load kind-deploy' to deploy the monitor."
@@ -125,10 +125,7 @@ kind-load: docker
 # Deploy monitor to KIND cluster
 kind-deploy:
 	@echo "Deploying to KIND cluster..."
-	kubectl apply -f deploy/kind/namespace.yaml
-	kubectl apply -f deploy/kind/configmap.yaml
-	kubectl apply -f deploy/kind/deployment.yaml
-	kubectl apply -f deploy/kind/service.yaml
+	kubectl apply -f deploy/kind/
 	@echo ""
 	@echo "Waiting for pods to be ready..."
 	kubectl -n mount-monitor-dev wait --for=condition=ready pod -l app=test-app-with-monitor --timeout=60s || true
