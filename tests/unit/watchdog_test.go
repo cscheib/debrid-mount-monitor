@@ -181,6 +181,10 @@ func TestWatchdog_ArmedToPendingRestart(t *testing.T) {
 
 // TestWatchdog_PendingRestartToTriggered tests the full transition to Triggered state.
 func TestWatchdog_PendingRestartToTriggered(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test with delays in short mode")
+	}
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        10 * time.Millisecond, // Short delay for fast test
@@ -223,6 +227,10 @@ func TestWatchdog_PendingRestartToTriggered(t *testing.T) {
 
 // TestWatchdog_RestartCancellationOnRecovery tests that recovery cancels pending restart.
 func TestWatchdog_RestartCancellationOnRecovery(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test with delays in short mode")
+	}
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        500 * time.Millisecond, // Enough time to cancel
@@ -269,6 +277,10 @@ func TestWatchdog_RestartCancellationOnRecovery(t *testing.T) {
 
 // TestWatchdog_DeletePodRetryWithBackoff tests retry logic with exponential backoff.
 func TestWatchdog_DeletePodRetryWithBackoff(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test with delays in short mode")
+	}
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        0, // Immediate
@@ -664,6 +676,10 @@ func TestWatchdogState_Fields(t *testing.T) {
 
 // TestWatchdog_ShutdownAbortsRestart tests that pending restart is aborted when context is cancelled.
 func TestWatchdog_ShutdownAbortsRestart(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test with delays in short mode")
+	}
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        200 * time.Millisecond, // Delay to allow cancellation
@@ -747,5 +763,112 @@ func TestWatchdog_PermanentErrorStopsRetry(t *testing.T) {
 	// Exit should be called after permanent error
 	if !exitCalled.Load() {
 		t.Error("exit should have been called after permanent error")
+	}
+}
+
+// TestWatchdog_ConcurrentMountFailures tests behavior when multiple mounts fail simultaneously.
+// The watchdog uses a single PendingMount field, so only the first failure triggers restart.
+// Subsequent failures for different mounts are ignored until recovery.
+func TestWatchdog_ConcurrentMountFailures(t *testing.T) {
+	cfg := watchdog.Config{
+		Enabled:             true,
+		RestartDelay:        1 * time.Hour, // Long delay to prevent actual trigger
+		MaxRetries:          3,
+		RetryBackoffInitial: 100 * time.Millisecond,
+		RetryBackoffMax:     10 * time.Second,
+	}
+
+	mockClient := &MockK8sClient{}
+	wd := watchdog.NewWatchdog(cfg, "test-pod", "test-ns", testLogger())
+	wd.SetK8sClient(mockClient)
+	wd.SetArmed()
+
+	// First mount fails - should trigger pending restart
+	wd.OnMountUnhealthy("/mnt/a", 3)
+
+	state := wd.State()
+	if state.State != watchdog.WatchdogPendingRestart {
+		t.Errorf("expected PendingRestart after first failure, got %v", state.State)
+	}
+	if state.PendingMount != "/mnt/a" {
+		t.Errorf("expected PendingMount /mnt/a, got %v", state.PendingMount)
+	}
+
+	// Second mount fails simultaneously - should be ignored (already pending)
+	wd.OnMountUnhealthy("/mnt/b", 5)
+
+	state = wd.State()
+	if state.State != watchdog.WatchdogPendingRestart {
+		t.Errorf("expected PendingRestart to remain, got %v", state.State)
+	}
+	// PendingMount should still be the first one that triggered
+	if state.PendingMount != "/mnt/a" {
+		t.Errorf("expected PendingMount to remain /mnt/a, got %v", state.PendingMount)
+	}
+
+	// Third mount fails - also ignored
+	wd.OnMountUnhealthy("/mnt/c", 2)
+
+	state = wd.State()
+	if state.PendingMount != "/mnt/a" {
+		t.Errorf("expected PendingMount to still be /mnt/a, got %v", state.PendingMount)
+	}
+}
+
+// TestWatchdog_RapidStateTransitions tests rapid OnMountUnhealthy -> OnMountHealthy -> OnMountUnhealthy
+// to verify timer cleanup and no race conditions.
+func TestWatchdog_RapidStateTransitions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test with delays in short mode")
+	}
+
+	cfg := watchdog.Config{
+		Enabled:             true,
+		RestartDelay:        100 * time.Millisecond,
+		MaxRetries:          3,
+		RetryBackoffInitial: 10 * time.Millisecond,
+		RetryBackoffMax:     100 * time.Millisecond,
+	}
+
+	mockClient := &MockK8sClient{}
+	wd := watchdog.NewWatchdog(cfg, "test-pod", "test-ns", testLogger())
+	wd.SetK8sClient(mockClient)
+	wd.SetArmed()
+
+	// Rapid transitions: unhealthy -> healthy -> unhealthy -> healthy
+	for i := 0; i < 5; i++ {
+		wd.OnMountUnhealthy("/mnt/test", 3)
+
+		state := wd.State()
+		if state.State != watchdog.WatchdogPendingRestart {
+			t.Errorf("iteration %d: expected PendingRestart, got %v", i, state.State)
+		}
+
+		// Quick recovery before timer fires
+		time.Sleep(10 * time.Millisecond)
+		wd.OnMountHealthy("/mnt/test")
+
+		state = wd.State()
+		if state.State != watchdog.WatchdogArmed {
+			t.Errorf("iteration %d: expected Armed after recovery, got %v", i, state.State)
+		}
+	}
+
+	// Wait to ensure no delayed triggers happen
+	time.Sleep(200 * time.Millisecond)
+
+	// No DeletePod should have been called (all were cancelled)
+	mockClient.mu.Lock()
+	deleteCount := len(mockClient.DeletePodCalls)
+	mockClient.mu.Unlock()
+
+	if deleteCount != 0 {
+		t.Errorf("expected 0 DeletePod calls after rapid transitions, got %d", deleteCount)
+	}
+
+	// Final state should be Armed
+	state := wd.State()
+	if state.State != watchdog.WatchdogArmed {
+		t.Errorf("expected final state Armed, got %v", state.State)
 	}
 }

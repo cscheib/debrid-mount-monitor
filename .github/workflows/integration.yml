@@ -1,0 +1,96 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/kind/**'
+      - 'Dockerfile'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'scripts/kind-e2e-test.sh'
+      - '.github/workflows/integration.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deploy/kind/**'
+      - 'Dockerfile'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'scripts/kind-e2e-test.sh'
+      - '.github/workflows/integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  kind-integration:
+    name: KIND Integration Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Create KIND cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: debrid-mount-monitor-ci
+          wait: 120s
+
+      - name: Build Docker image
+        run: docker build -t mount-monitor:dev -f Dockerfile .
+
+      - name: Verify image was built
+        run: docker image inspect mount-monitor:dev > /dev/null
+
+      - name: Load image into KIND
+        run: kind load docker-image mount-monitor:dev --name debrid-mount-monitor-ci
+
+      - name: Deploy monitor
+        run: |
+          kubectl create namespace watchdog-e2e-test
+          kubectl apply -n watchdog-e2e-test -f deploy/kind/rbac.yaml
+          kubectl apply -n watchdog-e2e-test -f deploy/kind/test-configmap.yaml
+          kubectl apply -n watchdog-e2e-test -f deploy/kind/service.yaml
+          kubectl apply -n watchdog-e2e-test -f deploy/kind/deployment.yaml
+
+      - name: Wait for pod to be ready
+        run: |
+          kubectl -n watchdog-e2e-test wait --for=condition=ready pod -l app=test-app-with-monitor --timeout=120s
+
+      - name: Test liveness endpoint
+        run: |
+          POD=$(kubectl -n watchdog-e2e-test get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
+          kubectl -n watchdog-e2e-test exec $POD -c mount-monitor -- wget -q -O- http://localhost:8080/healthz/live | grep -q '"status":"ok"'
+          echo "Liveness endpoint OK"
+
+      - name: Test readiness endpoint
+        run: |
+          POD=$(kubectl -n watchdog-e2e-test get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
+          kubectl -n watchdog-e2e-test exec $POD -c mount-monitor -- wget -q -O- http://localhost:8080/healthz/ready | grep -q '"status":"ok"'
+          echo "Readiness endpoint OK"
+
+      - name: Test status endpoint
+        run: |
+          POD=$(kubectl -n watchdog-e2e-test get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
+          kubectl -n watchdog-e2e-test exec $POD -c mount-monitor -- wget -q -O- http://localhost:8080/healthz/status | grep -q '"healthy":true'
+          echo "Status endpoint OK"
+
+      - name: Show monitor logs on failure
+        if: failure()
+        run: |
+          echo "=== Pod status ==="
+          kubectl -n watchdog-e2e-test get pods
+          echo "=== Pod description ==="
+          kubectl -n watchdog-e2e-test describe pods
+          echo "=== Monitor logs ==="
+          kubectl -n watchdog-e2e-test logs -l app=test-app-with-monitor -c mount-monitor --tail=100 || true

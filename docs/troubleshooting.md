@@ -2,6 +2,25 @@
 
 This guide helps operators diagnose and resolve common issues with the mount health monitor and watchdog sidecar.
 
+## Table of Contents
+
+- [Quick Diagnostics](#quick-diagnostics)
+- [Issue: Pod Not Restarting After Mount Failure](#issue-pod-not-restarting-after-mount-failure)
+- [Issue: RBAC Permission Errors](#issue-rbac-permission-errors)
+- [Issue: Missing POD_NAME/POD_NAMESPACE](#issue-missing-pod_namepod_namespace)
+- [Issue: Mount Never Detected as Unhealthy](#issue-mount-never-detected-as-unhealthy)
+- [Advanced Troubleshooting](#advanced-troubleshooting)
+  - [Enable Debug Logging](#enable-debug-logging)
+  - [Check Kubernetes Events](#check-kubernetes-events)
+  - [Inspect ServiceAccount Token](#inspect-serviceaccount-token)
+  - [Test API Connectivity](#test-api-connectivity)
+  - [Verify Metrics Endpoint](#verify-metrics-endpoint)
+  - [Manual Mount Failure Simulation](#manual-mount-failure-simulation)
+- [Common Log Messages Reference](#common-log-messages-reference)
+- [Getting Help](#getting-help)
+
+---
+
 ## Quick Diagnostics
 
 Run these commands first to get an overview of your deployment status:
@@ -308,6 +327,9 @@ Test if the monitor can reach the Kubernetes API:
 ```bash
 kubectl -n <namespace> exec <pod-name> -c mount-monitor -- sh -c '
   TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+  # WARNING: -k disables certificate verification. Safe here because we are
+  # connecting to the in-cluster Kubernetes API using the service account token.
+  # Do NOT use -k when connecting to external APIs.
   curl -sk -H "Authorization: Bearer $TOKEN" \
     https://kubernetes.default.svc/api/v1/namespaces/$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)/pods
 '
