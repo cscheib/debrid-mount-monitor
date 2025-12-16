@@ -19,6 +19,15 @@ type MountConfig struct {
 	FailureThreshold int    // Consecutive failures before unhealthy (0 = use global debounceThreshold)
 }
 
+// WatchdogConfig holds configuration for the watchdog feature.
+type WatchdogConfig struct {
+	Enabled             bool          // Enable/disable watchdog mode (default: false)
+	RestartDelay        time.Duration // Delay after UNHEALTHY before triggering restart (default: 0s)
+	MaxRetries          int           // Max API retry attempts before fallback (default: 3)
+	RetryBackoffInitial time.Duration // Initial retry delay for exponential backoff (default: 100ms)
+	RetryBackoffMax     time.Duration // Maximum retry delay cap (default: 10s)
+}
+
 // Config holds all runtime configuration for the mount monitor.
 type Config struct {
 	// Config file tracking
@@ -43,6 +52,9 @@ type Config struct {
 	// Logging configuration
 	LogLevel  string // debug, info, warn, error
 	LogFormat string // json, text
+
+	// Watchdog configuration
+	Watchdog WatchdogConfig // Pod restart watchdog settings
 }
 
 // DefaultConfig returns a Config with sensible defaults.
@@ -59,6 +71,13 @@ func DefaultConfig() *Config {
 		HTTPPort:          8080,
 		LogLevel:          "info",
 		LogFormat:         "json",
+		Watchdog: WatchdogConfig{
+			Enabled:             false,
+			RestartDelay:        0,
+			MaxRetries:          3,
+			RetryBackoffInitial: 100 * time.Millisecond,
+			RetryBackoffMax:     10 * time.Second,
+		},
 	}
 }
 
@@ -126,6 +145,16 @@ func Load() (*Config, error) {
 	}
 	if envVal := os.Getenv("LOG_FORMAT"); envVal != "" {
 		cfg.LogFormat = envVal
+	}
+
+	// Watchdog environment variables
+	if envVal := os.Getenv("WATCHDOG_ENABLED"); envVal != "" {
+		cfg.Watchdog.Enabled = envVal == "true" || envVal == "1"
+	}
+	if envVal := os.Getenv("WATCHDOG_RESTART_DELAY"); envVal != "" {
+		if d, err := time.ParseDuration(envVal); err == nil {
+			cfg.Watchdog.RestartDelay = d
+		}
 	}
 
 	// Override with flags if provided
@@ -222,6 +251,20 @@ func (c *Config) Validate() error {
 	validLogFormats := map[string]bool{"json": true, "text": true}
 	if !validLogFormats[c.LogFormat] {
 		errs = append(errs, fmt.Sprintf("log format must be one of: json, text (got %q)", c.LogFormat))
+	}
+
+	// Validate watchdog configuration
+	if c.Watchdog.RestartDelay < 0 {
+		errs = append(errs, "watchdog restart delay must be >= 0")
+	}
+	if c.Watchdog.MaxRetries < 1 {
+		errs = append(errs, "watchdog max retries must be >= 1")
+	}
+	if c.Watchdog.RetryBackoffInitial <= 0 {
+		errs = append(errs, "watchdog retry backoff initial must be > 0")
+	}
+	if c.Watchdog.RetryBackoffMax < c.Watchdog.RetryBackoffInitial {
+		errs = append(errs, "watchdog retry backoff max must be >= retry backoff initial")
 	}
 
 	if len(errs) > 0 {

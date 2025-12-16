@@ -44,6 +44,13 @@ func TestConfigValidation_Valid(t *testing.T) {
 		HTTPPort:          8080,
 		LogLevel:          "info",
 		LogFormat:         "json",
+		Watchdog: config.WatchdogConfig{
+			Enabled:             false,
+			RestartDelay:        0,
+			MaxRetries:          3,
+			RetryBackoffInitial: 100 * time.Millisecond,
+			RetryBackoffMax:     10 * time.Second,
+		},
 	}
 
 	if err := cfg.Validate(); err != nil {

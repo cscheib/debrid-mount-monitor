@@ -13,6 +13,7 @@ import (
 	"github.com/chris/debrid-mount-monitor/internal/health"
 	"github.com/chris/debrid-mount-monitor/internal/monitor"
 	"github.com/chris/debrid-mount-monitor/internal/server"
+	"github.com/chris/debrid-mount-monitor/internal/watchdog"
 )
 
 // Version is set at build time via ldflags.
@@ -51,6 +52,8 @@ func main() {
 		"log_level", cfg.LogLevel,
 		"log_format", cfg.LogFormat,
 		"canary_file", cfg.CanaryFile,
+		"watchdog_enabled", cfg.Watchdog.Enabled,
+		"watchdog_restart_delay", cfg.Watchdog.RestartDelay.String(),
 	)
 
 	// Create mounts from configuration
@@ -87,12 +90,35 @@ func main() {
 	// Create monitor
 	mon := monitor.New(mounts, checker, cfg.CheckInterval, cfg.DebounceThreshold, logger)
 
+	// Initialize watchdog
+	// Read pod identity from Downward API environment variables
+	podName := os.Getenv("POD_NAME")
+	podNamespace := os.Getenv("POD_NAMESPACE")
+
+	watchdogCfg := watchdog.Config{
+		Enabled:             cfg.Watchdog.Enabled,
+		RestartDelay:        cfg.Watchdog.RestartDelay,
+		MaxRetries:          cfg.Watchdog.MaxRetries,
+		RetryBackoffInitial: cfg.Watchdog.RetryBackoffInitial,
+		RetryBackoffMax:     cfg.Watchdog.RetryBackoffMax,
+	}
+	wd := watchdog.NewWatchdog(watchdogCfg, podName, podNamespace, logger)
+
+	// Connect watchdog to monitor for state change notifications
+	mon.SetWatchdog(wd)
+
 	// Create HTTP server
 	srv := server.New(mounts, cfg.HTTPPort, logger)
 
 	// Setup shutdown context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Start watchdog (validates K8s access and RBAC)
+	if err := wd.Start(ctx); err != nil {
+		logger.Error("watchdog start failed", "error", err)
+		// Non-fatal - continue without watchdog
+	}
 
 	// Start components
 	mon.Start(ctx)

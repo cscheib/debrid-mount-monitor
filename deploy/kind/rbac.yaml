@@ -1,0 +1,61 @@
+# RBAC Resources for Pod Restart Watchdog
+#
+# These resources grant the mount-monitor ServiceAccount permission to:
+# - Delete its own pod (for watchdog restart)
+# - Get pod status (to check if already terminating)
+# - Create events (to record watchdog restarts)
+# - Create selfsubjectaccessreviews (to validate RBAC at startup)
+#
+# Apply with: kubectl apply -f rbac.yaml -n mount-monitor-dev
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mount-monitor
+  namespace: mount-monitor-dev
+  labels:
+    app: mount-monitor
+    component: watchdog
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: mount-monitor-watchdog
+  namespace: mount-monitor-dev
+  labels:
+    app: mount-monitor
+    component: watchdog
+rules:
+  # Permission to delete and get pods (for self-deletion and termination check)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete", "get"]
+
+  # Permission to create events (for watchdog restart audit trail)
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create"]
+
+  # Permission to check own RBAC permissions at startup
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectaccessreviews"]
+    verbs: ["create"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mount-monitor-watchdog
+  namespace: mount-monitor-dev
+  labels:
+    app: mount-monitor
+    component: watchdog
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: mount-monitor-watchdog
+subjects:
+  - kind: ServiceAccount
+    name: mount-monitor

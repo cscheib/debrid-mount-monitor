@@ -37,17 +37,27 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// FileWatchdogConfig represents watchdog configuration in the JSON file.
+type FileWatchdogConfig struct {
+	Enabled             *bool    `json:"enabled,omitempty"`
+	RestartDelay        Duration `json:"restartDelay,omitempty"`
+	MaxRetries          int      `json:"maxRetries,omitempty"`
+	RetryBackoffInitial Duration `json:"retryBackoffInitial,omitempty"`
+	RetryBackoffMax     Duration `json:"retryBackoffMax,omitempty"`
+}
+
 // FileConfig represents the JSON configuration file structure.
 type FileConfig struct {
-	CheckInterval     Duration          `json:"checkInterval,omitempty"`
-	ReadTimeout       Duration          `json:"readTimeout,omitempty"`
-	ShutdownTimeout   Duration          `json:"shutdownTimeout,omitempty"`
-	DebounceThreshold int               `json:"debounceThreshold,omitempty"`
-	HTTPPort          int               `json:"httpPort,omitempty"`
-	LogLevel          string            `json:"logLevel,omitempty"`
-	LogFormat         string            `json:"logFormat,omitempty"`
-	CanaryFile        string            `json:"canaryFile,omitempty"`
-	Mounts            []FileMountConfig `json:"mounts,omitempty"`
+	CheckInterval     Duration           `json:"checkInterval,omitempty"`
+	ReadTimeout       Duration           `json:"readTimeout,omitempty"`
+	ShutdownTimeout   Duration           `json:"shutdownTimeout,omitempty"`
+	DebounceThreshold int                `json:"debounceThreshold,omitempty"`
+	HTTPPort          int                `json:"httpPort,omitempty"`
+	LogLevel          string             `json:"logLevel,omitempty"`
+	LogFormat         string             `json:"logFormat,omitempty"`
+	CanaryFile        string             `json:"canaryFile,omitempty"`
+	Mounts            []FileMountConfig  `json:"mounts,omitempty"`
+	Watchdog          FileWatchdogConfig `json:"watchdog,omitempty"`
 }
 
 // FileMountConfig represents per-mount configuration in the JSON file.
@@ -213,5 +223,23 @@ func applyFileConfig(c *Config, fc *FileConfig) {
 			c.Mounts[i] = mc
 			c.MountPaths[i] = fm.Path
 		}
+	}
+
+	// Apply watchdog configuration
+	// Note: Using pointer for Enabled to distinguish "not set" from "set to false"
+	if fc.Watchdog.Enabled != nil {
+		c.Watchdog.Enabled = *fc.Watchdog.Enabled
+	}
+	if fc.Watchdog.RestartDelay > 0 {
+		c.Watchdog.RestartDelay = time.Duration(fc.Watchdog.RestartDelay)
+	}
+	if fc.Watchdog.MaxRetries > 0 {
+		c.Watchdog.MaxRetries = fc.Watchdog.MaxRetries
+	}
+	if fc.Watchdog.RetryBackoffInitial > 0 {
+		c.Watchdog.RetryBackoffInitial = time.Duration(fc.Watchdog.RetryBackoffInitial)
+	}
+	if fc.Watchdog.RetryBackoffMax > 0 {
+		c.Watchdog.RetryBackoffMax = time.Duration(fc.Watchdog.RetryBackoffMax)
 	}
 }
