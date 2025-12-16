@@ -1,0 +1,121 @@
+# Deployment with mount-monitor as sidecar container
+# Demonstrates the sidecar pattern for local testing
+# Uses JSON config file mounted from ConfigMap (not environment variables)
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-app-with-monitor
+  namespace: mount-monitor-dev
+  labels:
+    app.kubernetes.io/name: mount-monitor
+    app.kubernetes.io/component: dev-environment
+    app.kubernetes.io/part-of: debrid-mount-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-app-with-monitor
+  template:
+    metadata:
+      labels:
+        app: test-app-with-monitor
+        app.kubernetes.io/name: mount-monitor
+        app.kubernetes.io/component: dev-environment
+    spec:
+      # Init container creates the canary file for healthy initial state
+      initContainers:
+      - name: init-canary
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "Initializing canary file..."
+          mkdir -p /mnt/test
+          echo "healthy" > /mnt/test/.health-check
+          echo "Canary file created at /mnt/test/.health-check"
+          ls -la /mnt/test/
+        volumeMounts:
+        - name: simulated-mount
+          mountPath: /mnt/test
+        resources:
+          requests:
+            cpu: 10m
+            memory: 8Mi
+          limits:
+            cpu: 50m
+            memory: 16Mi
+
+      containers:
+      # Main application container (simulated with alpine sleep)
+      - name: main-app
+        image: alpine:3.19
+        command: ['sleep', 'infinity']
+        volumeMounts:
+        - name: simulated-mount
+          mountPath: /mnt/test
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+
+      # Mount monitor sidecar
+      - name: mount-monitor
+        image: mount-monitor:dev
+        imagePullPolicy: IfNotPresent
+        # Use JSON config file instead of environment variables
+        args:
+        - --config
+        - /etc/mount-monitor/config.json
+        ports:
+        - containerPort: 8080
+          name: health
+          protocol: TCP
+        volumeMounts:
+        - name: simulated-mount
+          mountPath: /mnt/test
+          readOnly: true
+        - name: monitor-config
+          mountPath: /etc/mount-monitor
+          readOnly: true
+        # Liveness probe - is the monitor process running?
+        livenessProbe:
+          httpGet:
+            path: /healthz/live
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        # Readiness probe - are the mounts healthy?
+        readinessProbe:
+          httpGet:
+            path: /healthz/ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+
+      volumes:
+      # Shared emptyDir volume simulating a mount point
+      - name: simulated-mount
+        emptyDir: {}
+      # ConfigMap containing JSON config file
+      - name: monitor-config
+        configMap:
+          name: mount-monitor-config
+
+      # Ensure pod doesn't wait too long for graceful termination
+      terminationGracePeriodSeconds: 10

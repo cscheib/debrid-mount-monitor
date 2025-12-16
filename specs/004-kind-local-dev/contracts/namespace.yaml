@@ -1,0 +1,11 @@
+# Namespace for mount-monitor local development
+# Isolates test resources from default namespace
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mount-monitor-dev
+  labels:
+    app.kubernetes.io/name: mount-monitor
+    app.kubernetes.io/component: dev-environment
+    app.kubernetes.io/part-of: debrid-mount-monitor

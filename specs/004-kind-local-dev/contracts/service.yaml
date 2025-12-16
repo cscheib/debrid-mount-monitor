@@ -1,0 +1,25 @@
+# NodePort Service for external access to health endpoints
+# Enables testing health endpoints from the host machine:
+#   curl localhost:30080/healthz/ready
+#   curl localhost:30080/healthz/live
+#   curl localhost:30080/healthz/status
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mount-monitor
+  namespace: mount-monitor-dev
+  labels:
+    app.kubernetes.io/name: mount-monitor
+    app.kubernetes.io/component: dev-environment
+    app.kubernetes.io/part-of: debrid-mount-monitor
+spec:
+  type: NodePort
+  selector:
+    app: test-app-with-monitor
+  ports:
+  - name: health
+    port: 8080
+    targetPort: 8080
+    nodePort: 30080
+    protocol: TCP

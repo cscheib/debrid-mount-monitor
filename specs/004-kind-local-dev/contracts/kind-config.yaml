@@ -1,0 +1,28 @@
+# KIND Cluster Configuration
+# Usage: kind create cluster --config kind-config.yaml --name ${KIND_CLUSTER_NAME:-debrid-mount-monitor}
+#
+# This configuration creates a single-node Kubernetes cluster suitable for
+# local development and testing of the mount-monitor sidecar.
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+# Single control-plane node (sufficient for sidecar testing)
+nodes:
+- role: control-plane
+  image: kindest/node:v1.28.0
+  # Optional: Expose health endpoint port to host
+  # Uncomment if you need to access health endpoints directly from host
+  # extraPortMappings:
+  # - containerPort: 30080
+  #   hostPort: 8080
+  #   protocol: TCP
+
+# Networking configuration
+networking:
+  # Use default CNI (kindnet)
+  disableDefaultCNI: false
+  # Pod subnet (default)
+  podSubnet: "10.244.0.0/16"
+  # Service subnet (default)
+  serviceSubnet: "10.96.0.0/16"
