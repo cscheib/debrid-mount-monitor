@@ -48,16 +48,16 @@ type FileWatchdogConfig struct {
 
 // FileConfig represents the JSON configuration file structure.
 type FileConfig struct {
-	CheckInterval     Duration           `json:"checkInterval,omitempty"`
-	ReadTimeout       Duration           `json:"readTimeout,omitempty"`
-	ShutdownTimeout   Duration           `json:"shutdownTimeout,omitempty"`
+	CheckInterval    Duration           `json:"checkInterval,omitempty"`
+	ReadTimeout      Duration           `json:"readTimeout,omitempty"`
+	ShutdownTimeout  Duration           `json:"shutdownTimeout,omitempty"`
 	FailureThreshold int                `json:"failureThreshold,omitempty"`
-	HTTPPort          int                `json:"httpPort,omitempty"`
-	LogLevel          string             `json:"logLevel,omitempty"`
-	LogFormat         string             `json:"logFormat,omitempty"`
-	CanaryFile        string             `json:"canaryFile,omitempty"`
-	Mounts            []FileMountConfig  `json:"mounts,omitempty"`
-	Watchdog          FileWatchdogConfig `json:"watchdog,omitempty"`
+	HTTPPort         int                `json:"httpPort,omitempty"`
+	LogLevel         string             `json:"logLevel,omitempty"`
+	LogFormat        string             `json:"logFormat,omitempty"`
+	CanaryFile       string             `json:"canaryFile,omitempty"`
+	Mounts           []FileMountConfig  `json:"mounts,omitempty"`
+	Watchdog         FileWatchdogConfig `json:"watchdog,omitempty"`
 }
 
 // FileMountConfig represents per-mount configuration in the JSON file.

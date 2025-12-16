@@ -35,15 +35,15 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestConfigValidation_Valid(t *testing.T) {
 	cfg := &config.Config{
-		MountPaths:        []string{"/mnt/test"},
-		CanaryFile:        ".health-check",
-		CheckInterval:     30 * time.Second,
-		ReadTimeout:       5 * time.Second,
-		ShutdownTimeout:   30 * time.Second,
+		MountPaths:       []string{"/mnt/test"},
+		CanaryFile:       ".health-check",
+		CheckInterval:    30 * time.Second,
+		ReadTimeout:      5 * time.Second,
+		ShutdownTimeout:  30 * time.Second,
 		FailureThreshold: 3,
-		HTTPPort:          8080,
-		LogLevel:          "info",
-		LogFormat:         "json",
+		HTTPPort:         8080,
+		LogLevel:         "info",
+		LogFormat:        "json",
 		Watchdog: config.WatchdogConfig{
 			Enabled:             false,
 			RestartDelay:        0,

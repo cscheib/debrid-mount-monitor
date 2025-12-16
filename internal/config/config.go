@@ -58,17 +58,17 @@ type Config struct {
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		ConfigFile:        "",
-		MountPaths:        []string{},
-		Mounts:            []MountConfig{},
-		CanaryFile:        ".health-check",
-		CheckInterval:     30 * time.Second,
-		ReadTimeout:       5 * time.Second,
-		ShutdownTimeout:   30 * time.Second,
+		ConfigFile:       "",
+		MountPaths:       []string{},
+		Mounts:           []MountConfig{},
+		CanaryFile:       ".health-check",
+		CheckInterval:    30 * time.Second,
+		ReadTimeout:      5 * time.Second,
+		ShutdownTimeout:  30 * time.Second,
 		FailureThreshold: 3,
-		HTTPPort:          8080,
-		LogLevel:          "info",
-		LogFormat:         "json",
+		HTTPPort:         8080,
+		LogLevel:         "info",
+		LogFormat:        "json",
 		Watchdog: WatchdogConfig{
 			Enabled:             false,
 			RestartDelay:        0,
