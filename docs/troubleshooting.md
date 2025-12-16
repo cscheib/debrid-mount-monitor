@@ -371,4 +371,4 @@ If you've tried the above steps and still have issues:
 1. Collect debug logs: `kubectl -n <namespace> logs <pod-name> -c mount-monitor > mount-monitor.log`
 2. Collect pod description: `kubectl -n <namespace> describe pod <pod-name> > pod-describe.txt`
 3. Collect events: `kubectl -n <namespace> get events > events.txt`
-4. Open an issue at: https://github.com/anthropics/claude-code/issues
+4. Open an issue at: https://github.com/cscheib/debrid-mount-monitor/issues
