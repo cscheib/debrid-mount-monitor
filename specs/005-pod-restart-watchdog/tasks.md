@@ -22,9 +22,9 @@ Based on plan.md structure:
 
 **Purpose**: Create new package structure for watchdog feature
 
-- [ ] T001 Create watchdog package directory at internal/watchdog/
-- [ ] T002 [P] Create placeholder watchdog.go in internal/watchdog/watchdog.go
-- [ ] T003 [P] Create placeholder k8s_client.go in internal/watchdog/k8s_client.go
+- [x] T001 Create watchdog package directory at internal/watchdog/
+- [x] T002 [P] Create placeholder watchdog.go in internal/watchdog/watchdog.go
+- [x] T003 [P] Create placeholder k8s_client.go in internal/watchdog/k8s_client.go
 
 ---
 
@@ -34,13 +34,13 @@ Based on plan.md structure:
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Add WatchdogConfig fields to internal/config/config.go (WatchdogEnabled, RestartDelay, MaxRetries, RetryBackoffInitial, RetryBackoffMax)
-- [ ] T005 Add watchdog config validation rules to Validate() in internal/config/config.go
-- [ ] T006 Extend JSON parsing for watchdog section in internal/config/file.go
-- [ ] T007 Add environment variable support for WATCHDOG_ENABLED and WATCHDOG_RESTART_DELAY in internal/config/config.go
-- [ ] T008 [P] Add WatchdogStatus enum (Disabled, Armed, PendingRestart, Triggered) to internal/watchdog/watchdog.go
-- [ ] T009 [P] Add WatchdogState struct with fields (State, UnhealthySince, PendingMount, RetryCount, LastError) to internal/watchdog/watchdog.go
-- [ ] T010 [P] Add RestartEvent struct with fields (Timestamp, PodName, Namespace, MountPath, Reason, FailureCount, UnhealthyDuration) to internal/watchdog/watchdog.go
+- [x] T004 Add WatchdogConfig fields to internal/config/config.go (WatchdogEnabled, RestartDelay, MaxRetries, RetryBackoffInitial, RetryBackoffMax)
+- [x] T005 Add watchdog config validation rules to Validate() in internal/config/config.go
+- [x] T006 Extend JSON parsing for watchdog section in internal/config/file.go
+- [x] T007 Add environment variable support for WATCHDOG_ENABLED and WATCHDOG_RESTART_DELAY in internal/config/config.go
+- [x] T008 [P] Add WatchdogStatus enum (Disabled, Armed, PendingRestart, Triggered) to internal/watchdog/watchdog.go
+- [x] T009 [P] Add WatchdogState struct with fields (State, UnhealthySince, PendingMount, RetryCount, LastError) to internal/watchdog/watchdog.go
+- [x] T010 [P] Add RestartEvent struct with fields (Timestamp, PodName, Namespace, MountPath, Reason, FailureCount, UnhealthyDuration) to internal/watchdog/watchdog.go
 
 **Checkpoint**: Foundation ready - config parsing works, types defined, user story implementation can begin
 
@@ -54,22 +54,22 @@ Based on plan.md structure:
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Implement IsInCluster() function to detect Kubernetes environment in internal/watchdog/k8s_client.go
-- [ ] T012 [P] [US1] Implement LoadInClusterConfig() to read service account token, CA cert, and namespace in internal/watchdog/k8s_client.go
-- [ ] T013 [US1] Implement K8sClient struct with New() constructor using in-cluster auth in internal/watchdog/k8s_client.go
-- [ ] T014 [US1] Implement CreateHTTPClient() with TLS configuration for K8s API in internal/watchdog/k8s_client.go
-- [ ] T015 [US1] Implement DeletePod(ctx, name) method with proper status code handling in internal/watchdog/k8s_client.go
-- [ ] T016 [US1] Implement IsPodTerminating(ctx, name) method to check deletionTimestamp in internal/watchdog/k8s_client.go
-- [ ] T017 [US1] Implement Watchdog struct with New() constructor accepting config, logger, and K8sClient in internal/watchdog/watchdog.go
-- [ ] T018 [US1] Implement OnMountStateChange(mount, transition) method to trigger state machine in internal/watchdog/watchdog.go
-- [ ] T019 [US1] Implement state transition logic (Armed → PendingRestart → Triggered) in internal/watchdog/watchdog.go
-- [ ] T020 [US1] Implement triggerRestart() method that checks IsPodTerminating() first, then calls DeletePod and handles errors in internal/watchdog/watchdog.go
-- [ ] T021 [US1] Implement restart delay timer with cancellation support in internal/watchdog/watchdog.go
-- [ ] T022 [US1] Add watchdog integration to Monitor in internal/monitor/monitor.go (call OnMountStateChange on transitions)
-- [ ] T023 [US1] Initialize watchdog in main.go with config and pass to Monitor in cmd/mount-monitor/main.go
-- [ ] T024 [US1] Add POD_NAME and POD_NAMESPACE environment variable reading in cmd/mount-monitor/main.go
-- [ ] T025 [US1] Create RBAC manifest (ServiceAccount, Role, RoleBinding) at deploy/kind/rbac.yaml
-- [ ] T026 [US1] Update deployment.yaml to reference ServiceAccount and add POD_NAME/POD_NAMESPACE env vars in deploy/kind/deployment.yaml
+- [x] T011 [P] [US1] Implement IsInCluster() function to detect Kubernetes environment in internal/watchdog/k8s_client.go
+- [x] T012 [P] [US1] Implement LoadInClusterConfig() to read service account token, CA cert, and namespace in internal/watchdog/k8s_client.go
+- [x] T013 [US1] Implement K8sClient struct with New() constructor using in-cluster auth in internal/watchdog/k8s_client.go
+- [x] T014 [US1] Implement CreateHTTPClient() with TLS configuration for K8s API in internal/watchdog/k8s_client.go
+- [x] T015 [US1] Implement DeletePod(ctx, name) method with proper status code handling in internal/watchdog/k8s_client.go
+- [x] T016 [US1] Implement IsPodTerminating(ctx, name) method to check deletionTimestamp in internal/watchdog/k8s_client.go
+- [x] T017 [US1] Implement Watchdog struct with New() constructor accepting config, logger, and K8sClient in internal/watchdog/watchdog.go
+- [x] T018 [US1] Implement OnMountStateChange(mount, transition) method to trigger state machine in internal/watchdog/watchdog.go
+- [x] T019 [US1] Implement state transition logic (Armed → PendingRestart → Triggered) in internal/watchdog/watchdog.go
+- [x] T020 [US1] Implement triggerRestart() method that checks IsPodTerminating() first, then calls DeletePod and handles errors in internal/watchdog/watchdog.go
+- [x] T021 [US1] Implement restart delay timer with cancellation support in internal/watchdog/watchdog.go
+- [x] T022 [US1] Add watchdog integration to Monitor in internal/monitor/monitor.go (call OnMountStateChange on transitions)
+- [x] T023 [US1] Initialize watchdog in main.go with config and pass to Monitor in cmd/mount-monitor/main.go
+- [x] T024 [US1] Add POD_NAME and POD_NAMESPACE environment variable reading in cmd/mount-monitor/main.go
+- [x] T025 [US1] Create RBAC manifest (ServiceAccount, Role, RoleBinding) at deploy/kind/rbac.yaml
+- [x] T026 [US1] Update deployment.yaml to reference ServiceAccount and add POD_NAME/POD_NAMESPACE env vars in deploy/kind/deployment.yaml
 
 **Checkpoint**: User Story 1 complete - mount failure triggers pod restart via K8s API
 
@@ -83,14 +83,14 @@ Based on plan.md structure:
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] Implement CanDeletePods(ctx) RBAC validation method in internal/watchdog/k8s_client.go
-- [ ] T028 [US2] Add RBAC validation at startup - log error and disable watchdog if permissions missing in internal/watchdog/watchdog.go
-- [ ] T029 [US2] Implement graceful degradation when running outside Kubernetes (IsInCluster() = false) in internal/watchdog/watchdog.go
-- [ ] T030 [US2] Implement handleRecovery() method to cancel pending restart when mount recovers in internal/watchdog/watchdog.go
-- [ ] T031 [US2] Update configmap.yaml with watchdog configuration section in deploy/kind/configmap.yaml
-- [ ] T032 [US2] Add unit test for watchdog disabled behavior in tests/unit/watchdog_test.go
-- [ ] T033 [US2] Add unit test for restart delay configuration in tests/unit/watchdog_test.go
-- [ ] T034 [US2] Add unit test for restart cancellation on recovery in tests/unit/watchdog_test.go
+- [x] T027 [US2] Implement CanDeletePods(ctx) RBAC validation method in internal/watchdog/k8s_client.go
+- [x] T028 [US2] Add RBAC validation at startup - log error and disable watchdog if permissions missing in internal/watchdog/watchdog.go
+- [x] T029 [US2] Implement graceful degradation when running outside Kubernetes (IsInCluster() = false) in internal/watchdog/watchdog.go
+- [x] T030 [US2] Implement handleRecovery() method to cancel pending restart when mount recovers in internal/watchdog/watchdog.go
+- [x] T031 [US2] Update configmap.yaml with watchdog configuration section in deploy/kind/configmap.yaml
+- [x] T032 [US2] Add unit test for watchdog disabled behavior in tests/unit/watchdog_test.go
+- [x] T033 [US2] Add unit test for restart delay configuration in tests/unit/watchdog_test.go
+- [x] T034 [US2] Add unit test for restart cancellation on recovery in tests/unit/watchdog_test.go
 
 **Checkpoint**: User Story 2 complete - watchdog fully configurable, graceful degradation works
 
@@ -104,14 +104,14 @@ Based on plan.md structure:
 
 ### Implementation for User Story 3
 
-- [ ] T035 [P] [US3] Implement CreateEvent(ctx, event) method to create Kubernetes Event resources in internal/watchdog/k8s_client.go
-- [ ] T036 [US3] Add structured logging for all watchdog state transitions (armed, pending, triggered, cancelled, failed) in internal/watchdog/watchdog.go
-- [ ] T037 [US3] Create Kubernetes event before pod deletion with reason "WatchdogRestart" in internal/watchdog/watchdog.go
-- [ ] T038 [US3] Implement exponential backoff retry logic for DeletePod with configurable max retries in internal/watchdog/watchdog.go
-- [ ] T039 [US3] Implement fallback to os.Exit(1) after retries exhausted in internal/watchdog/watchdog.go
-- [ ] T040 [US3] Add logging for retry attempts with attempt count and error details in internal/watchdog/watchdog.go
-- [ ] T041 [US3] Add unit test for Kubernetes event creation in tests/unit/watchdog_test.go
-- [ ] T042 [US3] Add unit test for exponential backoff retry logic in tests/unit/watchdog_test.go
+- [x] T035 [P] [US3] Implement CreateEvent(ctx, event) method to create Kubernetes Event resources in internal/watchdog/k8s_client.go
+- [x] T036 [US3] Add structured logging for all watchdog state transitions (armed, pending, triggered, cancelled, failed) in internal/watchdog/watchdog.go
+- [x] T037 [US3] Create Kubernetes event before pod deletion with reason "WatchdogRestart" in internal/watchdog/watchdog.go
+- [x] T038 [US3] Implement exponential backoff retry logic for DeletePod with configurable max retries in internal/watchdog/watchdog.go
+- [x] T039 [US3] Implement fallback to os.Exit(1) after retries exhausted in internal/watchdog/watchdog.go
+- [x] T040 [US3] Add logging for retry attempts with attempt count and error details in internal/watchdog/watchdog.go
+- [x] T041 [US3] Add unit test for Kubernetes event creation in tests/unit/watchdog_test.go
+- [x] T042 [US3] Add unit test for exponential backoff retry logic in tests/unit/watchdog_test.go
 
 **Checkpoint**: User Story 3 complete - full observability for watchdog restarts
 
@@ -121,11 +121,11 @@ Based on plan.md structure:
 
 **Purpose**: Documentation, validation, and cleanup
 
-- [ ] T043 [P] Update quickstart.md with actual test commands after deployment in specs/005-pod-restart-watchdog/quickstart.md
-- [ ] T044 [P] Add watchdog section to project README.md
-- [ ] T045 Run KIND deployment and validate end-to-end watchdog behavior per quickstart.md
-- [ ] T046 Verify all acceptance scenarios from spec.md pass
-- [ ] T047 Code cleanup and go fmt/vet/lint validation
+- [x] T043 [P] Update quickstart.md with actual test commands after deployment in specs/005-pod-restart-watchdog/quickstart.md
+- [x] T044 [P] Add watchdog section to project README.md
+- [x] T045 Run KIND deployment and validate end-to-end watchdog behavior per quickstart.md
+- [x] T046 Verify all acceptance scenarios from spec.md pass
+- [x] T047 Code cleanup and go fmt/vet/lint validation
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-pod-restart-watchdog`
 **Created**: 2025-12-15
-**Status**: Draft
+**Status**: Implemented ✅
 **Input**: User description: "I need this service to act as a watchdog sidecar. When the checks fail, it needs to force a restart on the entire pod, rather than just a single container"
 
 ## Clarifications
@@ -130,3 +130,37 @@ As an operator, I need visibility into watchdog-triggered restarts through logs 
 - **SC-004**: Operators can enable/disable watchdog mode without code changes, using only configuration file or environment variable.
 - **SC-005**: 100% of watchdog restarts are logged with structured fields (mount_path, reason, timestamp) for alerting integration.
 - **SC-006**: The watchdog correctly handles API failures, retrying at least 3 times before giving up.
+
+## Related Specifications
+
+- **Extends**: [001-mount-health-monitor](../001-mount-health-monitor/spec.md) - Adds pod-level restart capability to the core health monitoring functionality
+- **Uses**: [004-kind-local-dev](../004-kind-local-dev/spec.md) - KIND development environment for local testing of watchdog behavior
+
+## Implementation Notes
+
+*Added 2025-12-16 after implementation*
+
+### Key Implementation Decisions
+
+1. **Standard Library Only**: Implemented Kubernetes API client using `net/http` instead of client-go to maintain the project's no-external-dependencies philosophy
+
+2. **Watchdog Package Structure**:
+   - `internal/watchdog/watchdog.go` - State machine (Disabled → Armed → PendingRestart → Triggered)
+   - `internal/watchdog/k8s_client.go` - REST API client with in-cluster auth
+
+3. **Monitor Integration**: Added `WatchdogNotifier` interface to decouple monitor from watchdog, called on mount state transitions
+
+4. **RBAC Resources**: Created `deploy/kind/rbac.yaml` with ServiceAccount, Role, and RoleBinding for pod delete/get and event create permissions
+
+5. **Configuration**: Extended existing config system with `watchdog` section in JSON and `WATCHDOG_ENABLED`/`WATCHDOG_RESTART_DELAY` environment variables
+
+### Files Modified/Created
+
+- `internal/watchdog/` (new package)
+- `internal/config/config.go` (WatchdogConfig struct)
+- `internal/config/file.go` (JSON parsing for watchdog section)
+- `internal/monitor/monitor.go` (WatchdogNotifier integration)
+- `cmd/mount-monitor/main.go` (initialization, POD_NAME/POD_NAMESPACE)
+- `deploy/kind/rbac.yaml` (new RBAC manifest)
+- `deploy/kind/deployment.yaml` (ServiceAccount reference, Downward API)
+- `deploy/kind/configmap.yaml` (watchdog config section)

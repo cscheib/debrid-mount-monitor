@@ -2,7 +2,7 @@
 
 **Feature Branch**: `002-json-config`
 **Created**: 2025-12-14
-**Status**: Draft
+**Status**: Implemented ✅
 **Input**: User description: "create a feature to modify the configuration injection. configuration should be injected via config file. The format of the configuration file should be JSON. Useful attributes are: mount name, path to canary file, check frequency, failure threshold."
 
 ## Clarifications
