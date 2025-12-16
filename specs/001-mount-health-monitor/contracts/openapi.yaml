@@ -148,6 +148,10 @@ components:
         - last_check
         - failure_count
       properties:
+        name:
+          type: string
+          description: Human-readable identifier for the mount (optional, from config)
+          example: debrid-movies
         path:
           type: string
           description: Filesystem path being monitored

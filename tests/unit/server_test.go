@@ -386,6 +386,75 @@ func TestStatusEndpoint_DegradedMount(t *testing.T) {
 	}
 }
 
+// TestStatusEndpoint_IncludesMountName tests that the status endpoint includes mount name when configured.
+func TestStatusEndpoint_IncludesMountName(t *testing.T) {
+	// Create mount with a name
+	mountWithName := health.NewMount("debrid-movies", "/mnt/movies", ".health-check", 3)
+	// Create mount without a name
+	mountWithoutName := health.NewMount("", "/mnt/tv", ".health-check", 3)
+
+	// Make both mounts healthy
+	result1 := &health.CheckResult{
+		Mount:     mountWithName,
+		Timestamp: time.Now(),
+		Success:   true,
+		Duration:  100 * time.Millisecond,
+	}
+	mountWithName.UpdateState(result1, 3)
+
+	result2 := &health.CheckResult{
+		Mount:     mountWithoutName,
+		Timestamp: time.Now(),
+		Success:   true,
+		Duration:  100 * time.Millisecond,
+	}
+	mountWithoutName.UpdateState(result2, 3)
+
+	srv := server.New([]*health.Mount{mountWithName, mountWithoutName}, 0, testLogger())
+	handler := createServerHandler(srv)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz/status", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+
+	var response struct {
+		Status string `json:"status"`
+		Mounts []struct {
+			Name   string `json:"name"`
+			Path   string `json:"path"`
+			Status string `json:"status"`
+		} `json:"mounts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if len(response.Mounts) != 2 {
+		t.Fatalf("expected 2 mounts, got %d", len(response.Mounts))
+	}
+
+	// Verify mount with name has name in response
+	if response.Mounts[0].Name != "debrid-movies" {
+		t.Errorf("expected mount name 'debrid-movies', got %q", response.Mounts[0].Name)
+	}
+	if response.Mounts[0].Path != "/mnt/movies" {
+		t.Errorf("expected mount path '/mnt/movies', got %q", response.Mounts[0].Path)
+	}
+
+	// Verify mount without name has empty name (omitted in JSON due to omitempty)
+	if response.Mounts[1].Name != "" {
+		t.Errorf("expected empty mount name for unnamed mount, got %q", response.Mounts[1].Name)
+	}
+	if response.Mounts[1].Path != "/mnt/tv" {
+		t.Errorf("expected mount path '/mnt/tv', got %q", response.Mounts[1].Path)
+	}
+}
+
 // TestEndpoints_MethodNotAllowed tests that non-GET methods return 405.
 func TestEndpoints_MethodNotAllowed(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
