@@ -1,0 +1,46 @@
+# Test ConfigMap for e2e watchdog testing
+# Uses shorter intervals and delays for faster test execution
+#
+# Differences from production configmap.yaml:
+# - checkInterval: 2s (vs 10s) - faster health check cycles
+# - debounceThreshold: 2 (vs 3) - fewer failures before unhealthy
+# - failureThreshold: 2 (vs 3) - faster state transition
+# - watchdog.restartDelay: 5s (vs 0s) - visible delay for verification
+#
+# Total time to trigger restart: ~4-6s (2 checks * 2s interval)
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mount-monitor-config
+  namespace: mount-monitor-dev
+  labels:
+    app.kubernetes.io/name: mount-monitor
+    app.kubernetes.io/component: e2e-test
+    app.kubernetes.io/part-of: debrid-mount-monitor
+data:
+  # JSON configuration file - mounted as /etc/mount-monitor/config.json
+  config.json: |
+    {
+      "checkInterval": "2s",
+      "readTimeout": "1s",
+      "shutdownTimeout": "10s",
+      "debounceThreshold": 2,
+      "httpPort": 8080,
+      "logLevel": "debug",
+      "logFormat": "json",
+      "canaryFile": ".health-check",
+      "mounts": [
+        {
+          "name": "test-mount",
+          "path": "/mnt/test",
+          "canaryFile": ".health-check",
+          "failureThreshold": 2
+        }
+      ],
+      "watchdog": {
+        "enabled": true,
+        "restartDelay": "5s",
+        "maxRetries": 3
+      }
+    }
