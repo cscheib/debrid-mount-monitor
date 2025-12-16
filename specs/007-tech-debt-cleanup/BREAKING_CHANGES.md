@@ -38,7 +38,38 @@ mount-monitor --debounce-threshold=3
 mount-monitor --failure-threshold=3
 ```
 
-### 3. Environment Variable Configuration Removed
+### 3. Most CLI Flags Removed
+
+**Change**: Configuration CLI flags have been removed. Only essential runtime flags remain:
+- `--config`, `-c` (kept)
+- `--http-port` (kept)
+- `--log-level` (kept)
+- `--log-format` (kept)
+
+**Removed CLI Flags**:
+- `--mount-paths`
+- `--canary-file`
+- `--check-interval`
+- `--read-timeout`
+- `--shutdown-timeout`
+- `--failure-threshold`
+
+**Reason**: The JSON config file is the primary means of configuration. CLI flags are now reserved for runtime essentials (port, logging) that may need to differ between environments without changing the config file.
+
+**Migration**:
+```bash
+# Before
+mount-monitor --mount-paths=/mnt/debrid --failure-threshold=3
+
+# After - create a config.json
+{
+  "failureThreshold": 3,
+  "mounts": [{"name": "debrid", "path": "/mnt/debrid"}]
+}
+mount-monitor --config=config.json
+```
+
+### 4. Environment Variable Configuration Removed
 
 **Change**: All configuration environment variables have been removed. Configuration must now be done via JSON config file or CLI flags.
 
@@ -92,7 +123,7 @@ volumes:
     name: mount-monitor-config
 ```
 
-### 4. Go Module Namespace Changed
+### 5. Go Module Namespace Changed
 
 **Change**: The Go module path changed from `github.com/chris/debrid-mount-monitor` to `github.com/cscheib/debrid-mount-monitor`.
 

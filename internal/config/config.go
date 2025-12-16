@@ -85,14 +85,9 @@ func Load() (*Config, error) {
 	cfg := DefaultConfig()
 
 	// Define flags
+	// Note: Most configuration is done via JSON config file. Only essential runtime flags are kept.
 	configFile := flag.String("config", "", "Path to JSON configuration file")
 	flag.StringVar(configFile, "c", "", "Path to JSON configuration file (shorthand)")
-	mountPaths := flag.String("mount-paths", "", "Comma-separated list of mount paths to monitor")
-	canaryFile := flag.String("canary-file", "", "Relative path to canary file within each mount")
-	checkInterval := flag.Duration("check-interval", 0, "Time between health checks")
-	readTimeout := flag.Duration("read-timeout", 0, "Timeout for canary file read")
-	shutdownTimeout := flag.Duration("shutdown-timeout", 0, "Max time for graceful shutdown")
-	failureThreshold := flag.Int("failure-threshold", 0, "Consecutive failures before unhealthy")
 	httpPort := flag.Int("http-port", 0, "Port for health endpoints")
 	logLevel := flag.String("log-level", "", "Log level: debug, info, warn, error")
 	logFormat := flag.String("log-format", "", "Log format: json, text")
@@ -104,27 +99,7 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	// Override with flags if provided
-	// Note: --mount-paths flag takes highest precedence and clears config file mounts
-	if *mountPaths != "" {
-		cfg.MountPaths = parseMountPaths(*mountPaths)
-		cfg.Mounts = nil // Clear config file mounts - CLI flag takes precedence
-	}
-	if *canaryFile != "" {
-		cfg.CanaryFile = *canaryFile
-	}
-	if *checkInterval > 0 {
-		cfg.CheckInterval = *checkInterval
-	}
-	if *readTimeout > 0 {
-		cfg.ReadTimeout = *readTimeout
-	}
-	if *shutdownTimeout > 0 {
-		cfg.ShutdownTimeout = *shutdownTimeout
-	}
-	if *failureThreshold > 0 {
-		cfg.FailureThreshold = *failureThreshold
-	}
+	// Override with flags if provided (only runtime essentials)
 	if *httpPort > 0 {
 		cfg.HTTPPort = *httpPort
 	}
@@ -219,20 +194,4 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
-}
-
-// parseMountPaths splits a comma-separated string into a slice of paths.
-func parseMountPaths(s string) []string {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	paths := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			paths = append(paths, p)
-		}
-	}
-	return paths
 }

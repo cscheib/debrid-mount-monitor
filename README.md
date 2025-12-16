@@ -71,18 +71,14 @@ Relative paths are resolved from the working directory where the monitor runs.
 
 ### CLI Flags
 
+Most configuration is done via the JSON config file. Only essential runtime flags are provided:
+
 | Flag | Description |
 |------|-------------|
 | `--config`, `-c` | Path to JSON configuration file |
-| `--mount-paths` | Comma-separated list of mount paths |
-| `--canary-file` | Canary file name |
-| `--check-interval` | Health check interval |
-| `--read-timeout` | Canary file read timeout |
-| `--failure-threshold` | Consecutive failures threshold |
-| `--shutdown-timeout` | Graceful shutdown timeout |
-| `--http-port` | HTTP server port |
-| `--log-level` | Log level |
-| `--log-format` | Log format |
+| `--http-port` | HTTP server port (default: 8080) |
+| `--log-level` | Log level: debug, info, warn, error (default: info) |
+| `--log-format` | Log format: json, text (default: json) |
 
 ## Security
 
@@ -123,18 +119,31 @@ docker run -v /mnt/debrid:/mnt/debrid:ro \
   mount-monitor:latest
 ```
 
-Or using CLI flags:
+With debug logging:
 
 ```bash
 docker run -v /mnt/debrid:/mnt/debrid:ro \
+  -v $(pwd)/config.json:/app/config.json:ro \
   -p 8080:8080 \
   mount-monitor:latest \
-  --mount-paths=/mnt/debrid
+  --log-level=debug
 ```
 
 ### Kubernetes
 
+Deploy with a ConfigMap for configuration:
+
 ```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mount-monitor-config
+data:
+  config.json: |
+    {
+      "mounts": [{"name": "debrid", "path": "/mnt/debrid"}]
+    }
+---
 apiVersion: v1
 kind: Pod
 spec:
@@ -144,7 +153,7 @@ spec:
   - name: mount-monitor
     image: mount-monitor:latest
     args:
-    - --mount-paths=/mnt/debrid
+    - --config=/app/config.json
     ports:
     - containerPort: 8080
     livenessProbe:
@@ -163,20 +172,14 @@ spec:
     - name: debrid-mount
       mountPath: /mnt/debrid
       readOnly: true
-```
-
-For more complex configurations, mount a ConfigMap containing `config.json`:
-
-```yaml
-volumeMounts:
-- name: config
-  mountPath: /app/config.json
-  subPath: config.json
-  readOnly: true
-volumes:
-- name: config
-  configMap:
-    name: mount-monitor-config
+    - name: config
+      mountPath: /app/config.json
+      subPath: config.json
+      readOnly: true
+  volumes:
+  - name: config
+    configMap:
+      name: mount-monitor-config
 ```
 
 ## Development

@@ -2,7 +2,7 @@
   "checkInterval": "30s",
   "readTimeout": "5s",
   "shutdownTimeout": "30s",
-  "debounceThreshold": 3,
+  "failureThreshold": 3,
   "httpPort": 8080,
   "logLevel": "info",
   "logFormat": "json",

@@ -37,7 +37,7 @@ A Plex server pod mounts debrid storage via rclone WebDAV. The debrid service ex
 
 **How debrid-mount-monitor helps:**
 1. Sidecar continuously checks canary file on the mount (every 30s by default)
-2. After 3 consecutive failures (debounce), mount is marked UNHEALTHY
+2. After 3 consecutive failures (failure threshold), mount is marked UNHEALTHY
 3. Watchdog automatically deletes the pod via Kubernetes API
 4. ReplicaSet creates fresh pod with fresh mount connection
 5. Plex comes back online with working storage
@@ -67,7 +67,7 @@ A Radarr pod is part of a Deployment. The mount becomes degraded but not fully f
 ### UC-3: Graceful Handling of Transient Network Issues
 
 **Personas:** All
-**Feature:** Debounce Logic with Configurable Thresholds
+**Feature:** Failure Threshold Logic with Configurable Thresholds
 
 **Scenario:**
 Network has occasional hiccups. A single failed health check shouldn't trigger a pod restart, as this would cause unnecessary downtime.
@@ -256,36 +256,37 @@ Running on a Raspberry Pi or low-spec NAS with limited resources.
 ### UC-10: Flexible Deployment Options
 
 **Personas:** All
-**Feature:** Multi-tier Configuration System
+**Feature:** JSON Config File with Runtime Overrides
 
 **Scenario:**
-Different deployment styles across environments:
-- Development: CLI flags for quick iteration
-- Staging: Environment variables via ConfigMap
-- Production: JSON config file with full per-mount settings
+Configuration via JSON file with essential runtime flags:
+- All mount and timing configuration: JSON config file
+- Runtime overrides: `--http-port`, `--log-level`, `--log-format`
 
 **Examples:**
 
+```json
+// config.json
+{
+  "checkInterval": "5s",
+  "mounts": [{"name": "test", "path": "/mnt/test"}]
+}
+```
+
 ```bash
-# Development
-./mount-monitor --mount-paths=/mnt/test --check-interval=5s
+# Development with debug logging
+./mount-monitor --config=config.json --log-level=debug --log-format=text
 ```
 
 ```yaml
-# Docker Compose
-environment:
-  - MOUNT_PATHS=/mnt/debrid
-  - CHECK_INTERVAL=30s
-```
-
-```yaml
-# Kubernetes Production
+# Kubernetes Production - ConfigMap with JSON config
 volumeMounts:
   - name: config
-    mountPath: /etc/mount-monitor/config.json
+    mountPath: /app/config.json
+    subPath: config.json
 ```
 
-**Value:** Adapts to any deployment style.
+**Value:** Clean separation between configuration (JSON) and runtime settings (flags).
 
 ---
 
@@ -295,7 +296,7 @@ volumeMounts:
 |----------|---------------|--------|
 | UC-1: Auto Recovery | High | Complete |
 | UC-2: Readiness Probes | High | Complete |
-| UC-3: Debounce Logic | High | Complete |
+| UC-3: Failure Threshold | High | Complete |
 | UC-4: Multi-Mount | Medium | Complete |
 | UC-5: Status Endpoint | Medium | Complete |
 | UC-6: Audit Trail | Medium | Complete |
