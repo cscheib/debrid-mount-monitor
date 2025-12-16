@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chris/debrid-mount-monitor/internal/watchdog"
+	"github.com/cscheib/debrid-mount-monitor/internal/watchdog"
 )
 
 // MockK8sClient implements K8sClientInterface for testing.

@@ -51,7 +51,7 @@ type FileConfig struct {
 	CheckInterval     Duration           `json:"checkInterval,omitempty"`
 	ReadTimeout       Duration           `json:"readTimeout,omitempty"`
 	ShutdownTimeout   Duration           `json:"shutdownTimeout,omitempty"`
-	DebounceThreshold int                `json:"debounceThreshold,omitempty"`
+	FailureThreshold int                `json:"failureThreshold,omitempty"`
 	HTTPPort          int                `json:"httpPort,omitempty"`
 	LogLevel          string             `json:"logLevel,omitempty"`
 	LogFormat         string             `json:"logFormat,omitempty"`
@@ -178,8 +178,8 @@ func applyFileConfig(c *Config, fc *FileConfig) {
 	if fc.ShutdownTimeout > 0 {
 		c.ShutdownTimeout = time.Duration(fc.ShutdownTimeout)
 	}
-	if fc.DebounceThreshold > 0 {
-		c.DebounceThreshold = fc.DebounceThreshold
+	if fc.FailureThreshold > 0 {
+		c.FailureThreshold = fc.FailureThreshold
 	}
 	if fc.HTTPPort > 0 {
 		c.HTTPPort = fc.HTTPPort
@@ -217,7 +217,7 @@ func applyFileConfig(c *Config, fc *FileConfig) {
 			if fm.FailureThreshold > 0 {
 				mc.FailureThreshold = fm.FailureThreshold
 			} else {
-				mc.FailureThreshold = c.DebounceThreshold
+				mc.FailureThreshold = c.FailureThreshold
 			}
 
 			c.Mounts[i] = mc

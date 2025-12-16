@@ -3,13 +3,12 @@ package unit
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/chris/debrid-mount-monitor/internal/config"
-	"github.com/chris/debrid-mount-monitor/internal/health"
+	"github.com/cscheib/debrid-mount-monitor/internal/config"
+	"github.com/cscheib/debrid-mount-monitor/internal/health"
 )
 
 // T010: Test JSON file parsing with valid config
@@ -21,7 +20,7 @@ func TestConfigFile_ValidJSON(t *testing.T) {
 		"checkInterval": "60s",
 		"readTimeout": "10s",
 		"shutdownTimeout": "45s",
-		"debounceThreshold": 5,
+		"failureThreshold": 5,
 		"httpPort": 9090,
 		"logLevel": "debug",
 		"logFormat": "text",
@@ -61,8 +60,8 @@ func TestConfigFile_ValidJSON(t *testing.T) {
 	if cfg.ShutdownTimeout != 45*time.Second {
 		t.Errorf("expected shutdownTimeout 45s, got %v", cfg.ShutdownTimeout)
 	}
-	if cfg.DebounceThreshold != 5 {
-		t.Errorf("expected debounceThreshold 5, got %d", cfg.DebounceThreshold)
+	if cfg.FailureThreshold != 5 {
+		t.Errorf("expected failureThreshold 5, got %d", cfg.FailureThreshold)
 	}
 	if cfg.HTTPPort != 9090 {
 		t.Errorf("expected httpPort 9090, got %d", cfg.HTTPPort)
@@ -278,7 +277,7 @@ func TestConfigFile_PerMountThresholdOverride(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "config.json")
 
 	configJSON := `{
-		"debounceThreshold": 5,
+		"failureThreshold": 5,
 		"mounts": [
 			{
 				"name": "with-override",
@@ -472,172 +471,6 @@ func TestDuration_UnmarshalJSON_Invalid(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected error for invalid duration format")
-	}
-}
-
-// =============================================================================
-// Precedence Integration Tests (High Priority from PR Review)
-// =============================================================================
-
-// TestPrecedence_ConfigFileMountsNotOverriddenByEnvVar verifies that
-// MOUNT_PATHS env var does NOT override mounts from config file.
-// This is the fix for PR Review Issue #3.
-func TestPrecedence_ConfigFileMountsNotOverriddenByEnvVar(t *testing.T) {
-	// Save and restore env var
-	originalEnv := os.Getenv("MOUNT_PATHS")
-	defer os.Setenv("MOUNT_PATHS", originalEnv)
-
-	// Set MOUNT_PATHS env var
-	os.Setenv("MOUNT_PATHS", "/env/mount1,/env/mount2")
-
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
-
-	// Config file with mounts
-	configJSON := `{
-		"mounts": [
-			{"name": "from-file", "path": "/file/mount"}
-		]
-	}`
-
-	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
-		t.Fatalf("failed to write config file: %v", err)
-	}
-
-	cfg := config.DefaultConfig()
-	if err := cfg.LoadFromFileForTesting(configPath); err != nil {
-		t.Fatalf("failed to load config: %v", err)
-	}
-
-	// Config file mounts should be preserved
-	if len(cfg.Mounts) != 1 {
-		t.Fatalf("expected 1 mount from config file, got %d", len(cfg.Mounts))
-	}
-	if cfg.Mounts[0].Path != "/file/mount" {
-		t.Errorf("expected mount path '/file/mount', got %q", cfg.Mounts[0].Path)
-	}
-	if cfg.Mounts[0].Name != "from-file" {
-		t.Errorf("expected mount name 'from-file', got %q", cfg.Mounts[0].Name)
-	}
-
-	// MountPaths should NOT have been set from env var (config file mounts take precedence)
-	if len(cfg.MountPaths) != 1 || cfg.MountPaths[0] != "/file/mount" {
-		t.Errorf("expected MountPaths from config file, got %v", cfg.MountPaths)
-	}
-}
-
-// TestPrecedence_EnvVarWorksWithoutConfigFileMounts verifies that
-// MOUNT_PATHS env var works when no config file mounts are present.
-func TestPrecedence_EnvVarWorksWithoutConfigFileMounts(t *testing.T) {
-	// Save current directory and restore after test
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get working directory: %v", err)
-	}
-	defer os.Chdir(originalDir)
-
-	// Create temp directory without config.json
-	tmpDir := t.TempDir()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change directory: %v", err)
-	}
-
-	// Save and restore env var
-	originalEnv := os.Getenv("MOUNT_PATHS")
-	defer os.Setenv("MOUNT_PATHS", originalEnv)
-
-	// Set MOUNT_PATHS env var
-	os.Setenv("MOUNT_PATHS", "/env/mount1,/env/mount2")
-
-	cfg := config.DefaultConfig()
-	// Load with empty path (no config file)
-	if err := cfg.LoadFromFileForTesting(""); err != nil {
-		t.Fatalf("failed to load config: %v", err)
-	}
-
-	// No config file, so no Mounts from file
-	if len(cfg.Mounts) != 0 {
-		t.Errorf("expected 0 mounts (no config file), got %d", len(cfg.Mounts))
-	}
-
-	// MountPaths would be set by env var in the full Load() flow
-	// This test just verifies that LoadFromFileForTesting doesn't interfere
-}
-
-// TestPrecedence_GlobalSettingsOverriddenByEnvVar verifies that
-// global settings (not mounts) from config file ARE overridden by env vars.
-// This test simulates the precedence by manually applying env var logic after file loading.
-func TestPrecedence_GlobalSettingsOverriddenByEnvVar(t *testing.T) {
-	// Save and restore env vars
-	originalLogLevel := os.Getenv("LOG_LEVEL")
-	originalHTTPPort := os.Getenv("HTTP_PORT")
-	originalCheckInterval := os.Getenv("CHECK_INTERVAL")
-	defer func() {
-		os.Setenv("LOG_LEVEL", originalLogLevel)
-		os.Setenv("HTTP_PORT", originalHTTPPort)
-		os.Setenv("CHECK_INTERVAL", originalCheckInterval)
-	}()
-
-	// Set env vars that should override config file
-	os.Setenv("LOG_LEVEL", "error")
-	os.Setenv("HTTP_PORT", "9999")
-	os.Setenv("CHECK_INTERVAL", "2m")
-
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.json")
-
-	// Config file sets different values
-	configJSON := `{
-		"logLevel": "debug",
-		"httpPort": 9000,
-		"checkInterval": "30s",
-		"mounts": [{"path": "/mnt/test"}]
-	}`
-
-	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
-		t.Fatalf("failed to write config file: %v", err)
-	}
-
-	cfg := config.DefaultConfig()
-	if err := cfg.LoadFromFileForTesting(configPath); err != nil {
-		t.Fatalf("failed to load config: %v", err)
-	}
-
-	// After file loading, values should be from config file
-	if cfg.LogLevel != "debug" {
-		t.Errorf("after file load: expected logLevel 'debug', got %q", cfg.LogLevel)
-	}
-	if cfg.HTTPPort != 9000 {
-		t.Errorf("after file load: expected httpPort 9000, got %d", cfg.HTTPPort)
-	}
-	if cfg.CheckInterval != 30*time.Second {
-		t.Errorf("after file load: expected checkInterval 30s, got %v", cfg.CheckInterval)
-	}
-
-	// Simulate env var override (as Load() does after loadFromFile)
-	if envVal := os.Getenv("LOG_LEVEL"); envVal != "" {
-		cfg.LogLevel = envVal
-	}
-	if envVal := os.Getenv("HTTP_PORT"); envVal != "" {
-		if port, err := strconv.Atoi(envVal); err == nil {
-			cfg.HTTPPort = port
-		}
-	}
-	if envVal := os.Getenv("CHECK_INTERVAL"); envVal != "" {
-		if d, err := time.ParseDuration(envVal); err == nil {
-			cfg.CheckInterval = d
-		}
-	}
-
-	// After env var override, values should be from env vars
-	if cfg.LogLevel != "error" {
-		t.Errorf("after env override: expected logLevel 'error', got %q", cfg.LogLevel)
-	}
-	if cfg.HTTPPort != 9999 {
-		t.Errorf("after env override: expected httpPort 9999, got %d", cfg.HTTPPort)
-	}
-	if cfg.CheckInterval != 2*time.Minute {
-		t.Errorf("after env override: expected checkInterval 2m, got %v", cfg.CheckInterval)
 	}
 }
 

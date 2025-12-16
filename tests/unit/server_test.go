@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chris/debrid-mount-monitor/internal/health"
-	"github.com/chris/debrid-mount-monitor/internal/server"
+	"github.com/cscheib/debrid-mount-monitor/internal/health"
+	"github.com/cscheib/debrid-mount-monitor/internal/server"
 )
 
 // testLogger returns a silent logger for testing.
@@ -61,10 +61,10 @@ func TestLivenessEndpoint_HealthyMount(t *testing.T) {
 }
 
 // TestLivenessEndpoint_DegradedMount tests liveness returns 200 for degraded mounts.
-// Per spec: degraded (within debounce) should NOT trigger liveness failure.
+// Per spec: degraded (within failure threshold) should NOT trigger liveness failure.
 func TestLivenessEndpoint_DegradedMount(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	// Simulate degraded state (1 failure, below threshold)
 	result := &health.CheckResult{
@@ -73,7 +73,7 @@ func TestLivenessEndpoint_DegradedMount(t *testing.T) {
 		Success:   false,
 		Duration:  100 * time.Millisecond,
 	}
-	mount.UpdateState(result, debounceThreshold)
+	mount.UpdateState(result, failureThreshold)
 
 	if mount.GetStatus() != health.StatusDegraded {
 		t.Fatalf("expected mount to be degraded, got %v", mount.GetStatus())
@@ -94,20 +94,20 @@ func TestLivenessEndpoint_DegradedMount(t *testing.T) {
 }
 
 // TestLivenessEndpoint_UnhealthyMount tests liveness returns 503 for unhealthy mounts.
-// Per spec: liveness returns 503 when mount is UNHEALTHY (past debounce threshold).
+// Per spec: liveness returns 503 when mount is UNHEALTHY (past failure threshold).
 func TestLivenessEndpoint_UnhealthyMount(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	// Simulate unhealthy state (3 failures)
-	for i := 0; i < debounceThreshold; i++ {
+	for i := 0; i < failureThreshold; i++ {
 		result := &health.CheckResult{
 			Mount:     mount,
 			Timestamp: time.Now(),
 			Success:   false,
 			Duration:  100 * time.Millisecond,
 		}
-		mount.UpdateState(result, debounceThreshold)
+		mount.UpdateState(result, failureThreshold)
 	}
 
 	if mount.GetStatus() != health.StatusUnhealthy {
@@ -198,17 +198,17 @@ func TestReadinessEndpoint_AllHealthy(t *testing.T) {
 // TestReadinessEndpoint_UnhealthyMount tests readiness returns 503 when any mount is unhealthy.
 func TestReadinessEndpoint_UnhealthyMount(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	// Simulate unhealthy state (3 failures)
-	for i := 0; i < debounceThreshold; i++ {
+	for i := 0; i < failureThreshold; i++ {
 		result := &health.CheckResult{
 			Mount:     mount,
 			Timestamp: time.Now(),
 			Success:   false,
 			Duration:  100 * time.Millisecond,
 		}
-		mount.UpdateState(result, debounceThreshold)
+		mount.UpdateState(result, failureThreshold)
 	}
 
 	srv := server.New([]*health.Mount{mount}, 0, testLogger())
@@ -237,7 +237,7 @@ func TestReadinessEndpoint_UnhealthyMount(t *testing.T) {
 // Per spec: readiness requires HEALTHY state - degraded triggers 503.
 func TestReadinessEndpoint_DegradedMount(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	// Simulate degraded state (1 failure, below threshold)
 	result := &health.CheckResult{
@@ -246,7 +246,7 @@ func TestReadinessEndpoint_DegradedMount(t *testing.T) {
 		Success:   false,
 		Duration:  100 * time.Millisecond,
 	}
-	mount.UpdateState(result, debounceThreshold)
+	mount.UpdateState(result, failureThreshold)
 
 	if mount.GetStatus() != health.StatusDegraded {
 		t.Fatalf("expected mount to be degraded, got %v", mount.GetStatus())

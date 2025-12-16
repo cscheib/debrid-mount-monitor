@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chris/debrid-mount-monitor/internal/health"
+	"github.com/cscheib/debrid-mount-monitor/internal/health"
 )
 
 // WatchdogNotifier is an interface for notifying the watchdog of mount state changes.
@@ -18,23 +18,23 @@ type WatchdogNotifier interface {
 
 // Monitor continuously checks mount health at configured intervals.
 type Monitor struct {
-	mounts            []*health.Mount
-	checker           *health.Checker
-	interval          time.Duration
-	debounceThreshold int
-	logger            *slog.Logger
-	wg                sync.WaitGroup
-	watchdog          WatchdogNotifier
+	mounts           []*health.Mount
+	checker          *health.Checker
+	interval         time.Duration
+	failureThreshold int
+	logger           *slog.Logger
+	wg               sync.WaitGroup
+	watchdog         WatchdogNotifier
 }
 
 // New creates a new Monitor instance.
-func New(mounts []*health.Mount, checker *health.Checker, interval time.Duration, debounceThreshold int, logger *slog.Logger) *Monitor {
+func New(mounts []*health.Mount, checker *health.Checker, interval time.Duration, failureThreshold int, logger *slog.Logger) *Monitor {
 	return &Monitor{
-		mounts:            mounts,
-		checker:           checker,
-		interval:          interval,
-		debounceThreshold: debounceThreshold,
-		logger:            logger,
+		mounts:           mounts,
+		checker:          checker,
+		interval:         interval,
+		failureThreshold: failureThreshold,
+		logger:           logger,
 	}
 }
 
@@ -92,7 +92,7 @@ func (m *Monitor) checkMount(ctx context.Context, mount *health.Mount) {
 	// config.MountConfig and allows omitting the field in JSON config files.
 	threshold := mount.FailureThreshold
 	if threshold == 0 {
-		threshold = m.debounceThreshold
+		threshold = m.failureThreshold
 	}
 	transition := mount.UpdateState(result, threshold)
 

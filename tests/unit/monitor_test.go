@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chris/debrid-mount-monitor/internal/health"
-	"github.com/chris/debrid-mount-monitor/internal/monitor"
+	"github.com/cscheib/debrid-mount-monitor/internal/health"
+	"github.com/cscheib/debrid-mount-monitor/internal/monitor"
 )
 
 func TestMonitor_StartsAndStops(t *testing.T) {
@@ -49,13 +49,13 @@ func TestMonitor_DetectsFailure(t *testing.T) {
 	checker := health.NewChecker(100 * time.Millisecond)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	debounceThreshold := 3
-	mon := monitor.New([]*health.Mount{mount}, checker, 50*time.Millisecond, debounceThreshold, logger)
+	failureThreshold := 3
+	mon := monitor.New([]*health.Mount{mount}, checker, 50*time.Millisecond, failureThreshold, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	mon.Start(ctx)
 
-	// Wait for enough checks to exceed debounce threshold
+	// Wait for enough checks to exceed failure threshold
 	time.Sleep(250 * time.Millisecond)
 
 	cancel()
@@ -63,7 +63,7 @@ func TestMonitor_DetectsFailure(t *testing.T) {
 
 	// Verify the mount transitioned to unhealthy
 	if mount.GetStatus() != health.StatusUnhealthy {
-		t.Errorf("expected mount status Unhealthy after %d failures, got %v", debounceThreshold, mount.GetStatus())
+		t.Errorf("expected mount status Unhealthy after %d failures, got %v", failureThreshold, mount.GetStatus())
 	}
 }
 
@@ -77,8 +77,8 @@ func TestMonitor_DetectsRecovery(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	checkInterval := 100 * time.Millisecond
-	debounceThreshold := 2
-	mon := monitor.New([]*health.Mount{mount}, checker, checkInterval, debounceThreshold, logger)
+	failureThreshold := 2
+	mon := monitor.New([]*health.Mount{mount}, checker, checkInterval, failureThreshold, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
@@ -87,7 +87,7 @@ func TestMonitor_DetectsRecovery(t *testing.T) {
 	}()
 	mon.Start(ctx)
 
-	// Poll until mount becomes unhealthy (debounce threshold exceeded)
+	// Poll until mount becomes unhealthy (failure threshold exceeded)
 	// Use long timeout for CI with race detector
 	if !pollForStatus(t, mount, health.StatusUnhealthy, 10*time.Second, checkInterval) {
 		t.Fatalf("mount did not become unhealthy, got %v", mount.GetStatus())
@@ -135,16 +135,16 @@ func TestMonitor_MultipleMount(t *testing.T) {
 	checker := health.NewChecker(100 * time.Millisecond)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	debounceThreshold := 2
+	failureThreshold := 2
 	mounts := []*health.Mount{mount1, mount2}
-	mon := monitor.New(mounts, checker, 30*time.Millisecond, debounceThreshold, logger)
+	mon := monitor.New(mounts, checker, 30*time.Millisecond, failureThreshold, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	mon.Start(ctx)
 
-	// Wait for enough checks to exceed debounce threshold for mount2
-	// Need at least debounceThreshold+1 intervals (initial check + threshold failures)
-	time.Sleep(time.Duration(debounceThreshold+2) * 50 * time.Millisecond)
+	// Wait for enough checks to exceed failure threshold for mount2
+	// Need at least failureThreshold+1 intervals (initial check + threshold failures)
+	time.Sleep(time.Duration(failureThreshold+2) * 50 * time.Millisecond)
 
 	cancel()
 	mon.Wait()

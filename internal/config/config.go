@@ -1,12 +1,10 @@
-// Package config handles configuration parsing from environment variables and flags.
+// Package config handles configuration parsing from JSON files and CLI flags.
 package config
 
 import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -14,9 +12,9 @@ import (
 // MountConfig holds per-mount configuration settings.
 type MountConfig struct {
 	Name             string // Human-readable identifier (optional)
-	Path             string // Filesystem path to mount point (required)
-	CanaryFile       string // Relative path to canary file (optional, inherits global)
-	FailureThreshold int    // Consecutive failures before unhealthy (0 = use global debounceThreshold)
+	Path             string // Filesystem path to mount point (required) - can be absolute or relative
+	CanaryFile       string // Relative path to canary file within mount (optional, inherits global)
+	FailureThreshold int    // Consecutive failures before unhealthy (0 = use global failureThreshold)
 }
 
 // WatchdogConfig holds configuration for the watchdog feature.
@@ -43,8 +41,8 @@ type Config struct {
 	ReadTimeout     time.Duration // Timeout for canary file read
 	ShutdownTimeout time.Duration // Max time for graceful shutdown
 
-	// Debounce configuration
-	DebounceThreshold int // Default consecutive failures before unhealthy
+	// Failure threshold configuration
+	FailureThreshold int // Default consecutive failures before unhealthy
 
 	// Server configuration
 	HTTPPort int // Port for health endpoints
@@ -67,7 +65,7 @@ func DefaultConfig() *Config {
 		CheckInterval:     30 * time.Second,
 		ReadTimeout:       5 * time.Second,
 		ShutdownTimeout:   30 * time.Second,
-		DebounceThreshold: 3,
+		FailureThreshold: 3,
 		HTTPPort:          8080,
 		LogLevel:          "info",
 		LogFormat:         "json",
@@ -81,8 +79,8 @@ func DefaultConfig() *Config {
 	}
 }
 
-// Load parses configuration from config file, environment variables, and command-line flags.
-// Precedence: Defaults → Config File → Environment Variables → CLI Flags
+// Load parses configuration from config file and command-line flags.
+// Precedence: Defaults → Config File → CLI Flags
 func Load() (*Config, error) {
 	cfg := DefaultConfig()
 
@@ -94,67 +92,16 @@ func Load() (*Config, error) {
 	checkInterval := flag.Duration("check-interval", 0, "Time between health checks")
 	readTimeout := flag.Duration("read-timeout", 0, "Timeout for canary file read")
 	shutdownTimeout := flag.Duration("shutdown-timeout", 0, "Max time for graceful shutdown")
-	debounceThreshold := flag.Int("debounce-threshold", 0, "Consecutive failures before unhealthy")
+	failureThreshold := flag.Int("failure-threshold", 0, "Consecutive failures before unhealthy")
 	httpPort := flag.Int("http-port", 0, "Port for health endpoints")
 	logLevel := flag.String("log-level", "", "Log level: debug, info, warn, error")
 	logFormat := flag.String("log-format", "", "Log format: json, text")
 
 	flag.Parse()
 
-	// Load from config file (after defaults, before env vars)
+	// Load from config file (after defaults, before CLI flags)
 	if err := cfg.loadFromFile(*configFile); err != nil {
 		return nil, err
-	}
-
-	// Load from environment variables
-	// Note: MOUNT_PATHS only applies if no mounts were loaded from config file
-	// This preserves per-mount config from file while allowing env vars for legacy setups
-	if envVal := os.Getenv("MOUNT_PATHS"); envVal != "" && len(cfg.Mounts) == 0 {
-		cfg.MountPaths = parseMountPaths(envVal)
-	}
-	if envVal := os.Getenv("CANARY_FILE"); envVal != "" {
-		cfg.CanaryFile = envVal
-	}
-	if envVal := os.Getenv("CHECK_INTERVAL"); envVal != "" {
-		if d, err := time.ParseDuration(envVal); err == nil {
-			cfg.CheckInterval = d
-		}
-	}
-	if envVal := os.Getenv("READ_TIMEOUT"); envVal != "" {
-		if d, err := time.ParseDuration(envVal); err == nil {
-			cfg.ReadTimeout = d
-		}
-	}
-	if envVal := os.Getenv("SHUTDOWN_TIMEOUT"); envVal != "" {
-		if d, err := time.ParseDuration(envVal); err == nil {
-			cfg.ShutdownTimeout = d
-		}
-	}
-	if envVal := os.Getenv("DEBOUNCE_THRESHOLD"); envVal != "" {
-		if i, err := strconv.Atoi(envVal); err == nil {
-			cfg.DebounceThreshold = i
-		}
-	}
-	if envVal := os.Getenv("HTTP_PORT"); envVal != "" {
-		if i, err := strconv.Atoi(envVal); err == nil {
-			cfg.HTTPPort = i
-		}
-	}
-	if envVal := os.Getenv("LOG_LEVEL"); envVal != "" {
-		cfg.LogLevel = envVal
-	}
-	if envVal := os.Getenv("LOG_FORMAT"); envVal != "" {
-		cfg.LogFormat = envVal
-	}
-
-	// Watchdog environment variables
-	if envVal := os.Getenv("WATCHDOG_ENABLED"); envVal != "" {
-		cfg.Watchdog.Enabled = envVal == "true" || envVal == "1"
-	}
-	if envVal := os.Getenv("WATCHDOG_RESTART_DELAY"); envVal != "" {
-		if d, err := time.ParseDuration(envVal); err == nil {
-			cfg.Watchdog.RestartDelay = d
-		}
 	}
 
 	// Override with flags if provided
@@ -175,8 +122,8 @@ func Load() (*Config, error) {
 	if *shutdownTimeout > 0 {
 		cfg.ShutdownTimeout = *shutdownTimeout
 	}
-	if *debounceThreshold > 0 {
-		cfg.DebounceThreshold = *debounceThreshold
+	if *failureThreshold > 0 {
+		cfg.FailureThreshold = *failureThreshold
 	}
 	if *httpPort > 0 {
 		cfg.HTTPPort = *httpPort
@@ -235,8 +182,8 @@ func (c *Config) Validate() error {
 		errs = append(errs, "read timeout must be less than check interval (otherwise health checks would overlap or never complete before the next check)")
 	}
 
-	if c.DebounceThreshold < 1 {
-		errs = append(errs, "debounce threshold must be >= 1")
+	if c.FailureThreshold < 1 {
+		errs = append(errs, "failure threshold must be >= 1")
 	}
 
 	if c.HTTPPort < 1 || c.HTTPPort > 65535 {

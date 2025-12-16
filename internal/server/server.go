@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chris/debrid-mount-monitor/internal/health"
+	"github.com/cscheib/debrid-mount-monitor/internal/health"
 )
 
 // Server provides HTTP endpoints for health probes.
@@ -67,7 +67,7 @@ func (s *Server) Handler() http.Handler {
 }
 
 // handleLiveness responds to liveness probe requests.
-// Returns 200 OK if no mount is UNHEALTHY (past debounce threshold).
+// Returns 200 OK if no mount is UNHEALTHY (past failure threshold).
 // Per spec: HEALTHY, DEGRADED, and UNKNOWN states return 200; only UNHEALTHY returns 503.
 func (s *Server) handleLiveness(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -75,11 +75,11 @@ func (s *Server) handleLiveness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if any mount is confirmed unhealthy (past debounce threshold)
+	// Check if any mount is confirmed unhealthy (past failure threshold)
 	allAlive := true
 	for _, mount := range s.mounts {
 		status := mount.GetStatus()
-		// Only UNHEALTHY (past debounce) triggers liveness failure
+		// Only UNHEALTHY (past failure threshold) triggers liveness failure
 		if status == health.StatusUnhealthy {
 			allAlive = false
 			break
