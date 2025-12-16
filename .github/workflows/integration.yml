@@ -57,40 +57,40 @@ jobs:
 
       - name: Deploy monitor
         run: |
-          kubectl create namespace watchdog-e2e-test
-          kubectl apply -n watchdog-e2e-test -f deploy/kind/rbac.yaml
-          kubectl apply -n watchdog-e2e-test -f deploy/kind/test-configmap.yaml
-          kubectl apply -n watchdog-e2e-test -f deploy/kind/service.yaml
-          kubectl apply -n watchdog-e2e-test -f deploy/kind/deployment.yaml
+          kubectl apply -f deploy/kind/00-namespace.yaml
+          kubectl apply -f deploy/kind/rbac.yaml
+          kubectl apply -f deploy/kind/test-configmap.yaml
+          kubectl apply -f deploy/kind/service.yaml
+          kubectl apply -f deploy/kind/deployment.yaml
 
       - name: Wait for pod to be ready
         run: |
-          kubectl -n watchdog-e2e-test wait --for=condition=ready pod -l app=test-app-with-monitor --timeout=120s
+          kubectl -n mount-monitor-dev wait --for=condition=ready pod -l app=test-app-with-monitor --timeout=120s
 
       - name: Test liveness endpoint
         run: |
-          POD=$(kubectl -n watchdog-e2e-test get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
-          kubectl -n watchdog-e2e-test exec $POD -c mount-monitor -- wget -q -O- http://localhost:8080/healthz/live | grep -q '"status":"ok"'
+          POD=$(kubectl -n mount-monitor-dev get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
+          kubectl -n mount-monitor-dev exec $POD -c mount-monitor -- wget -q -O- http://localhost:8080/healthz/live | grep -q '"status":"ok"'
           echo "Liveness endpoint OK"
 
       - name: Test readiness endpoint
         run: |
-          POD=$(kubectl -n watchdog-e2e-test get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
-          kubectl -n watchdog-e2e-test exec $POD -c mount-monitor -- wget -q -O- http://localhost:8080/healthz/ready | grep -q '"status":"ok"'
+          POD=$(kubectl -n mount-monitor-dev get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
+          kubectl -n mount-monitor-dev exec $POD -c mount-monitor -- wget -q -O- http://localhost:8080/healthz/ready | grep -q '"status":"ok"'
           echo "Readiness endpoint OK"
 
       - name: Test status endpoint
         run: |
-          POD=$(kubectl -n watchdog-e2e-test get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
-          kubectl -n watchdog-e2e-test exec $POD -c mount-monitor -- wget -q -O- http://localhost:8080/healthz/status | grep -q '"healthy":true'
+          POD=$(kubectl -n mount-monitor-dev get pod -l app=test-app-with-monitor -o jsonpath='{.items[0].metadata.name}')
+          kubectl -n mount-monitor-dev exec $POD -c mount-monitor -- wget -q -O- http://localhost:8080/healthz/status | grep -q '"healthy":true'
           echo "Status endpoint OK"
 
       - name: Show monitor logs on failure
         if: failure()
         run: |
           echo "=== Pod status ==="
-          kubectl -n watchdog-e2e-test get pods
+          kubectl -n mount-monitor-dev get pods
           echo "=== Pod description ==="
-          kubectl -n watchdog-e2e-test describe pods
+          kubectl -n mount-monitor-dev describe pods
           echo "=== Monitor logs ==="
-          kubectl -n watchdog-e2e-test logs -l app=test-app-with-monitor -c mount-monitor --tail=100 || true
+          kubectl -n mount-monitor-dev logs -l app=test-app-with-monitor -c mount-monitor --tail=100 || true
