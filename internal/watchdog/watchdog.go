@@ -5,6 +5,7 @@ package watchdog
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"sync"
@@ -96,12 +97,18 @@ type Watchdog struct {
 	podName   string
 	namespace string
 
+	// Context for shutdown coordination
+	ctx context.Context
+
 	// Restart delay timer (can be cancelled)
 	cancelRestart chan struct{}
 	restartTimer  *time.Timer
 
 	// Exit function (for testing)
 	exitFunc func(code int)
+
+	// Failure count tracker (passed from mount state)
+	failureCount int
 }
 
 // NewWatchdog creates a new Watchdog instance.
@@ -123,7 +130,11 @@ func NewWatchdog(cfg Config, podName, namespace string, logger *slog.Logger) *Wa
 
 // Start initializes the watchdog, setting up the K8s client and validating permissions.
 // Returns nil if watchdog is disabled or unable to start (non-fatal).
+// The provided context is stored for shutdown coordination.
 func (w *Watchdog) Start(ctx context.Context) error {
+	// Store context for use in triggerRestart
+	w.ctx = ctx
+
 	if !w.config.Enabled {
 		w.logger.Info("watchdog disabled by configuration")
 		return nil
@@ -183,11 +194,12 @@ func (w *Watchdog) Start(ctx context.Context) error {
 
 // OnMountUnhealthy is called when a mount transitions to unhealthy state.
 // It triggers the restart sequence if the watchdog is armed.
-func (w *Watchdog) OnMountUnhealthy(mountPath string) {
+// The failureCount parameter tracks how many consecutive failures occurred.
+func (w *Watchdog) OnMountUnhealthy(mountPath string, failureCount int) {
 	w.mu.Lock()
-	defer w.mu.Unlock()
 
 	if w.state.State != WatchdogArmed {
+		w.mu.Unlock()
 		return
 	}
 
@@ -195,22 +207,29 @@ func (w *Watchdog) OnMountUnhealthy(mountPath string) {
 	w.state.UnhealthySince = &now
 	w.state.PendingMount = mountPath
 	w.state.State = WatchdogPendingRestart
+	w.failureCount = failureCount
+
+	// Create cancel channel before releasing lock to prevent race
+	w.cancelRestart = make(chan struct{})
+	cancelCh := w.cancelRestart // Capture for goroutine
 
 	w.logger.Warn("watchdog restart pending",
 		"mount_path", mountPath,
+		"failure_count", failureCount,
 		"delay", w.config.RestartDelay)
 
-	// Start the restart delay timer
-	w.cancelRestart = make(chan struct{})
+	w.mu.Unlock()
 
 	if w.config.RestartDelay == 0 {
-		// Immediate restart
-		go w.triggerRestart()
+		// Immediate restart - pass cancel channel
+		go w.triggerRestart(cancelCh)
 	} else {
 		// Delayed restart
+		w.mu.Lock()
 		w.restartTimer = time.AfterFunc(w.config.RestartDelay, func() {
-			w.triggerRestart()
+			w.triggerRestart(cancelCh)
 		})
+		w.mu.Unlock()
 	}
 }
 
@@ -250,10 +269,31 @@ func (w *Watchdog) OnMountHealthy(mountPath string) {
 }
 
 // triggerRestart initiates the pod deletion process.
-func (w *Watchdog) triggerRestart() {
+// The cancelCh is checked before proceeding to prevent race conditions.
+func (w *Watchdog) triggerRestart(cancelCh <-chan struct{}) {
+	// Check if cancelled before acquiring lock (race condition fix)
+	select {
+	case <-cancelCh:
+		// Restart was cancelled before we could start
+		return
+	default:
+		// Continue
+	}
+
+	// Check if application is shutting down
+	if w.ctx != nil {
+		select {
+		case <-w.ctx.Done():
+			w.logger.Info("watchdog restart aborted due to shutdown")
+			return
+		default:
+			// Continue
+		}
+	}
+
 	w.mu.Lock()
 
-	// Check if restart was cancelled
+	// Check if restart was cancelled (state-based check)
 	if w.state.State != WatchdogPendingRestart {
 		w.mu.Unlock()
 		return
@@ -262,6 +302,7 @@ func (w *Watchdog) triggerRestart() {
 	w.state.State = WatchdogTriggered
 	mountPath := w.state.PendingMount
 	unhealthySince := w.state.UnhealthySince
+	failureCount := w.failureCount
 	w.mu.Unlock()
 
 	var unhealthyDuration time.Duration
@@ -269,7 +310,11 @@ func (w *Watchdog) triggerRestart() {
 		unhealthyDuration = time.Since(*unhealthySince)
 	}
 
-	ctx := context.Background()
+	// Use stored context if available, otherwise background
+	ctx := w.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	// Check if pod is already terminating
 	isTerminating, err := w.k8sClient.IsPodTerminating(ctx, w.podName)
@@ -283,18 +328,20 @@ func (w *Watchdog) triggerRestart() {
 		return
 	}
 
-	// Create restart event
+	// Create restart event with failure count
 	event := &RestartEvent{
 		Timestamp:         time.Now(),
 		PodName:           w.podName,
 		Namespace:         w.namespace,
 		MountPath:         mountPath,
-		Reason:            "Mount " + mountPath + " unhealthy, triggering pod restart",
+		Reason:            fmt.Sprintf("Mount %s unhealthy after %d consecutive failures, triggering pod restart", mountPath, failureCount),
+		FailureCount:      failureCount,
 		UnhealthyDuration: unhealthyDuration,
 	}
 
 	w.logger.Warn("watchdog restart triggered",
 		"mount_path", mountPath,
+		"failure_count", failureCount,
 		"unhealthy_duration", unhealthyDuration,
 		"pod", w.podName)
 

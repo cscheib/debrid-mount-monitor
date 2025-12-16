@@ -12,7 +12,7 @@ import (
 
 // WatchdogNotifier is an interface for notifying the watchdog of mount state changes.
 type WatchdogNotifier interface {
-	OnMountUnhealthy(mountPath string)
+	OnMountUnhealthy(mountPath string, failureCount int)
 	OnMountHealthy(mountPath string)
 }
 
@@ -134,7 +134,7 @@ func (m *Monitor) checkMount(ctx context.Context, mount *health.Mount) {
 		// Notify watchdog of state transitions
 		if m.watchdog != nil {
 			if transition.NewState == health.StatusUnhealthy {
-				m.watchdog.OnMountUnhealthy(mount.Path)
+				m.watchdog.OnMountUnhealthy(mount.Path, mount.GetFailureCount())
 			} else if transition.NewState == health.StatusHealthy && transition.PreviousState == health.StatusUnhealthy {
 				m.watchdog.OnMountHealthy(mount.Path)
 			}

@@ -21,7 +21,16 @@ const (
 	tokenPath          = serviceAccountPath + "/token"
 	caCertPath         = serviceAccountPath + "/ca.crt"
 	namespacePath      = serviceAccountPath + "/namespace"
-	httpClientTimeout  = 30 * time.Second
+
+	// httpClientTimeout is the timeout for HTTP requests to the Kubernetes API.
+	// 30 seconds is sufficient for pod deletion and event creation operations.
+	// This matches the default timeout used by client-go.
+	httpClientTimeout = 30 * time.Second
+
+	// maxResponseBodySize limits response body reads to prevent memory exhaustion
+	// from unexpectedly large API error responses (1MB should be more than sufficient
+	// for any Kubernetes API response).
+	maxResponseBodySize = 1 << 20 // 1MB
 )
 
 // K8sClient provides an abstraction for Kubernetes API interactions.
@@ -105,6 +114,7 @@ func NewK8sClient(logger *slog.Logger) (*K8sClient, error) {
 }
 
 // createHTTPClient creates an HTTP client configured with TLS using the cluster CA.
+// Connection pooling is configured for efficient reuse of connections to the K8s API.
 func createHTTPClient(caCert []byte) (*http.Client, error) {
 	caCertPool := x509.NewCertPool()
 	if !caCertPool.AppendCertsFromPEM(caCert) {
@@ -118,6 +128,10 @@ func createHTTPClient(caCert []byte) (*http.Client, error) {
 
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
+		// Connection pooling settings for efficient K8s API access
+		MaxIdleConns:        10,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
 	}
 
 	return &http.Client{
@@ -146,8 +160,8 @@ func (c *K8sClient) DeletePod(ctx context.Context, name string) error {
 	}
 	defer resp.Body.Close()
 
-	// Read response body for error details
-	body, _ := io.ReadAll(resp.Body)
+	// Read response body for error details (limited to prevent memory exhaustion)
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodySize))
 
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusAccepted:
@@ -211,7 +225,7 @@ func (c *K8sClient) IsPodTerminating(ctx context.Context, name string) (bool, er
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodySize))
 		return false, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -280,7 +294,7 @@ func (c *K8sClient) CreateEvent(ctx context.Context, event *RestartEvent) error 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodySize))
 		return fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
@@ -329,7 +343,7 @@ func (c *K8sClient) CanDeletePods(ctx context.Context) (bool, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodySize))
 		return false, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 

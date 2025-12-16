@@ -85,7 +85,7 @@ func TestWatchdog_StateTransitions(t *testing.T) {
 	}
 
 	// OnMountUnhealthy should have no effect when disabled
-	wd.OnMountUnhealthy("/mnt/test")
+	wd.OnMountUnhealthy("/mnt/test", 3)
 	state = wd.State()
 	if state.State != watchdog.WatchdogDisabled {
 		t.Error("OnMountUnhealthy should not change state when disabled")

@@ -95,6 +95,14 @@ func main() {
 	podName := os.Getenv("POD_NAME")
 	podNamespace := os.Getenv("POD_NAMESPACE")
 
+	// Warn if watchdog is enabled but pod identity is not configured
+	if cfg.Watchdog.Enabled && (podName == "" || podNamespace == "") {
+		logger.Warn("watchdog enabled but pod identity not configured",
+			"pod_name_set", podName != "",
+			"pod_namespace_set", podNamespace != "",
+			"hint", "set POD_NAME and POD_NAMESPACE env vars via Downward API")
+	}
+
 	watchdogCfg := watchdog.Config{
 		Enabled:             cfg.Watchdog.Enabled,
 		RestartDelay:        cfg.Watchdog.RestartDelay,
