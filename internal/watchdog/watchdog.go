@@ -370,8 +370,11 @@ func (w *Watchdog) triggerRestart(cancelCh <-chan struct{}) {
 		"unhealthy_duration", unhealthyDuration,
 		"pod", w.podName)
 
-	// Create Kubernetes event (best effort)
-	if err := w.k8sClient.CreateEvent(ctx, event); err != nil {
+	// Create Kubernetes event (best effort, with short timeout)
+	// Use 5-second timeout since event creation is best-effort and shouldn't delay pod deletion
+	eventCtx, eventCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer eventCancel()
+	if err := w.k8sClient.CreateEvent(eventCtx, event); err != nil {
 		w.logger.Warn("failed to create kubernetes event",
 			"error", err)
 	}

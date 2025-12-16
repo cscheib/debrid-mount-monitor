@@ -183,20 +183,27 @@ create_cluster() {
 build_and_load_image() {
     log_step "3/6" "Building and loading image..."
 
-    # Build image
+    # Build image (show stderr for errors, hide stdout for cleaner output)
     log_info "Building Docker image..."
-    (cd "${REPO_ROOT}" && docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" -f Dockerfile .) > /dev/null 2>&1 || {
+    if ! (cd "${REPO_ROOT}" && docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" -f Dockerfile . > /dev/null); then
         log_error "Failed to build Docker image"
         exit 3
-    }
+    fi
     log_success "Image built: ${IMAGE_NAME}:${IMAGE_TAG}"
+
+    # Verify image was created successfully
+    if ! docker image inspect "${IMAGE_NAME}:${IMAGE_TAG}" > /dev/null 2>&1; then
+        log_error "Docker image not found after build: ${IMAGE_NAME}:${IMAGE_TAG}"
+        exit 3
+    fi
+    log_success "Image verified: ${IMAGE_NAME}:${IMAGE_TAG}"
 
     # Load into KIND
     log_info "Loading image into KIND cluster..."
-    kind load docker-image "${IMAGE_NAME}:${IMAGE_TAG}" --name "${KIND_CLUSTER_NAME}" > /dev/null 2>&1 || {
+    if ! kind load docker-image "${IMAGE_NAME}:${IMAGE_TAG}" --name "${KIND_CLUSTER_NAME}" > /dev/null 2>&1; then
         log_error "Failed to load image into KIND"
         exit 3
-    }
+    fi
     log_success "Image loaded into cluster"
 }
 
