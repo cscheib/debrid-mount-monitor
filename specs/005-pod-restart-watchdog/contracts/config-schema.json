@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/chris/debrid-mount-monitor/config-schema.json",
+  "title": "Mount Monitor Configuration",
+  "description": "Configuration schema for debrid-mount-monitor with watchdog support",
+  "type": "object",
+  "properties": {
+    "checkInterval": {
+      "type": "string",
+      "description": "Time between health checks (duration string)",
+      "default": "30s",
+      "examples": ["10s", "30s", "1m"]
+    },
+    "readTimeout": {
+      "type": "string",
+      "description": "Timeout for canary file read operations",
+      "default": "5s"
+    },
+    "shutdownTimeout": {
+      "type": "string",
+      "description": "Maximum time for graceful shutdown",
+      "default": "30s"
+    },
+    "debounceThreshold": {
+      "type": "integer",
+      "description": "Default consecutive failures before marking mount unhealthy",
+      "default": 3,
+      "minimum": 1
+    },
+    "httpPort": {
+      "type": "integer",
+      "description": "Port for health check HTTP endpoints",
+      "default": 8080,
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "logLevel": {
+      "type": "string",
+      "description": "Logging verbosity level",
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info"
+    },
+    "logFormat": {
+      "type": "string",
+      "description": "Log output format",
+      "enum": ["json", "text"],
+      "default": "json"
+    },
+    "canaryFile": {
+      "type": "string",
+      "description": "Default canary file name for all mounts",
+      "default": ".health-check"
+    },
+    "mounts": {
+      "type": "array",
+      "description": "List of mount points to monitor",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable identifier for the mount"
+          },
+          "path": {
+            "type": "string",
+            "description": "Filesystem path to the mount point"
+          },
+          "canaryFile": {
+            "type": "string",
+            "description": "Override canary file for this mount"
+          },
+          "failureThreshold": {
+            "type": "integer",
+            "description": "Override failure threshold for this mount",
+            "minimum": 0
+          }
+        },
+        "required": ["path"]
+      }
+    },
+    "watchdog": {
+      "type": "object",
+      "description": "Watchdog mode configuration for pod-level restarts",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable watchdog mode (triggers pod restart on unhealthy mounts)",
+          "default": false
+        },
+        "restartDelay": {
+          "type": "string",
+          "description": "Delay after mount becomes UNHEALTHY before triggering restart",
+          "default": "0s",
+          "examples": ["0s", "30s", "1m"]
+        },
+        "maxRetries": {
+          "type": "integer",
+          "description": "Maximum API retry attempts before fallback to process exit",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10
+        },
+        "retryBackoffInitial": {
+          "type": "string",
+          "description": "Initial retry delay (exponential backoff)",
+          "default": "100ms"
+        },
+        "retryBackoffMax": {
+          "type": "string",
+          "description": "Maximum retry delay (exponential backoff cap)",
+          "default": "10s"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
