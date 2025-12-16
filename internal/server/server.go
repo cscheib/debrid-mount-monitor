@@ -137,6 +137,7 @@ func (s *Server) handleReadiness(w http.ResponseWriter, r *http.Request) {
 
 // MountStatusResponse represents the status of a single mount.
 type MountStatusResponse struct {
+	Name         string `json:"name,omitempty"`
 	Path         string `json:"path"`
 	Status       string `json:"status"`
 	LastCheck    string `json:"last_check,omitempty"`
@@ -169,6 +170,7 @@ func (s *Server) buildProbeResponse(isHealthy bool) StatusResponse {
 		}
 
 		mountStatuses[i] = MountStatusResponse{
+			Name:         snapshot.Name,
 			Path:         snapshot.Path,
 			Status:       snapshot.Status.String(),
 			LastCheck:    lastCheck,
