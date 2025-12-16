@@ -23,7 +23,7 @@ data:
   config.json: |
     {
       "checkInterval": "2s",
-      "readTimeout": "2s",
+      "readTimeout": "1s",
       "shutdownTimeout": "10s",
       "debounceThreshold": 2,
       "httpPort": 8080,
