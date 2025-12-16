@@ -67,6 +67,26 @@ This single command will:
 
 **Target iteration time**: Under 60 seconds from code change to running pod.
 
+## Testing Health Endpoints
+
+A NodePort service exposes the monitor's health endpoints on port 30080, allowing you to test directly from your host machine:
+
+```bash
+# Check if monitor process is alive
+curl localhost:30080/healthz/live
+
+# Check if mounts are healthy (used by Kubernetes readiness probe)
+curl localhost:30080/healthz/ready
+
+# Get detailed status of all monitored mounts
+curl localhost:30080/healthz/status | jq
+```
+
+This is useful for:
+- Debugging health check issues without kubectl exec
+- Scripting automated tests against the health endpoints
+- Monitoring mount status during failure simulation
+
 ## Simulating Mount Failures
 
 The deployment creates a simulated mount at `/mnt/test` with a canary file `.health-check`. You can manually simulate mount failures to test the monitor's behavior.
@@ -84,6 +104,12 @@ kubectl -n mount-monitor-dev exec $POD -c main-app -- rm /mnt/test/.health-check
 ### Verifying Probe Behavior
 
 After removing the canary file:
+
+> **⏱️ Timing Note:** The monitor's internal state and Kubernetes probe timing are intentionally different:
+> - **Monitor internal**: 10s check interval × 3 failures = ~30s until UNHEALTHY state
+> - **Kubernetes probe**: 5s period × 3 failures = ~15s until pod NotReady
+>
+> This means the pod may show `1/2 Ready` before the monitor logs show "UNHEALTHY". This is expected—Kubernetes detects the probe failures faster than the monitor's debounce threshold.
 
 1. **Watch the logs** to see health check failures:
    ```bash
@@ -272,6 +298,7 @@ kubectl config use-context kind-debrid-mount-monitor
 | `namespace.yaml` | Kubernetes namespace for isolation |
 | `configmap.yaml` | JSON config file for mount-monitor (mounted as `/etc/mount-monitor/config.json`) |
 | `deployment.yaml` | Sidecar deployment with probes, init container, and config file mount |
+| `service.yaml` | NodePort service exposing health endpoints on port 30080 |
 
 ### Configuration Approach
 

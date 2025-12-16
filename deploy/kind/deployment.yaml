@@ -39,6 +39,13 @@ spec:
         volumeMounts:
         - name: simulated-mount
           mountPath: /mnt/test
+        resources:
+          requests:
+            cpu: 10m
+            memory: 8Mi
+          limits:
+            cpu: 50m
+            memory: 16Mi
 
       containers:
       # Main application container (simulated with alpine sleep)

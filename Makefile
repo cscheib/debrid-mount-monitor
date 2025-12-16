@@ -128,11 +128,14 @@ kind-deploy:
 	kubectl apply -f deploy/kind/namespace.yaml
 	kubectl apply -f deploy/kind/configmap.yaml
 	kubectl apply -f deploy/kind/deployment.yaml
+	kubectl apply -f deploy/kind/service.yaml
 	@echo ""
 	@echo "Waiting for pods to be ready..."
 	kubectl -n mount-monitor-dev wait --for=condition=ready pod -l app=test-app-with-monitor --timeout=60s || true
 	@echo ""
-	@echo "Deployment complete! Run 'make kind-logs' to view logs."
+	@echo "Deployment complete!"
+	@echo "  View logs: make kind-logs"
+	@echo "  Test health: curl localhost:30080/healthz/ready"
 
 # Remove deployment from cluster
 kind-undeploy:
