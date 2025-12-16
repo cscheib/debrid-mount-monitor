@@ -34,7 +34,7 @@ As a user configuring the monitor, I want consistent terminology throughout the 
 **Acceptance Scenarios**:
 
 1. **Given** the JSON configuration schema, **When** configuring the global failure threshold, **Then** the key is named `failureThreshold` (matching the per-mount field)
-2. **Given** the CLI help output, **When** viewing threshold-related flags, **Then** the flag is named `--failure-threshold` with clear description
+2. **Given** the CLI help output, **When** viewing available flags, **Then** only essential runtime flags are shown (`--config`, `--http-port`, `--log-level`, `--log-format`) - configuration flags have been removed in favor of JSON config
 3. **Given** a running monitor with a mount that has exceeded the threshold, **When** viewing logs, **Then** log messages use "failure threshold" terminology
 4. **Given** the README documentation, **When** reading about threshold configuration, **Then** only "failure threshold" terminology is used (no "debounce" references)
 
@@ -91,7 +91,7 @@ As a user deploying the monitor, I want a single, clear configuration method (JS
 
 **Terminology Alignment:**
 - **FR-004**: Global configuration key MUST be named `failureThreshold` in JSON config
-- **FR-005**: CLI flag MUST be named `--failure-threshold`
+- **FR-005**: Failure threshold MUST be configurable via JSON config file `failureThreshold` key (CLI flag removed in favor of config-file-first approach)
 - **FR-006**: Internal variable names MUST use "failure" terminology (not "debounce")
 - **FR-007**: Log messages MUST use "failure threshold" terminology
 - **FR-008**: All code comments MUST use "failure threshold" terminology
@@ -115,6 +115,11 @@ As a user deploying the monitor, I want a single, clear configuration method (JS
 - **FR-022**: Documentation MUST be updated to remove environment variable references for configuration
 - **FR-023**: Kubernetes runtime environment variables (`KUBERNETES_SERVICE_HOST`, `KUBERNETES_SERVICE_PORT`, `POD_NAME`, `POD_NAMESPACE`) MUST continue to be read (not user configuration)
 
+**CLI Simplification (Config-File-First):**
+- **FR-024**: Only essential runtime CLI flags MUST be retained: `--config`, `--http-port`, `--log-level`, `--log-format`
+- **FR-025**: Configuration CLI flags MUST be removed: `--mount-paths`, `--canary-file`, `--check-interval`, `--read-timeout`, `--shutdown-timeout`, `--failure-threshold`
+- **FR-026**: All mount and timing configuration MUST be done via JSON config file
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
@@ -125,10 +130,12 @@ As a user deploying the monitor, I want a single, clear configuration method (JS
 - **SC-004**: Documentation clearly explains path configuration in a single, findable location
 - **SC-005**: All existing unit tests pass after changes (with necessary test updates)
 - **SC-006**: Breaking change (environment variable removal) is documented for users migrating from previous versions
+- **SC-007**: Only four CLI flags remain: `--config`, `--http-port`, `--log-level`, `--log-format`
 
 ## Assumptions
 
-- This is a **breaking change** for users relying on environment variable configuration
+- This is a **breaking change** for users relying on environment variable configuration or removed CLI flags
 - The release notes will clearly document the migration path (use JSON config instead)
 - The Kubernetes runtime environment variables are distinct from user configuration and remain unchanged
 - Relative paths resolve from the current working directory of the process
+- CLI flags for runtime settings (port, logging) take precedence over config file values

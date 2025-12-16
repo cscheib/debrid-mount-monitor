@@ -179,6 +179,42 @@ Based on plan.md structure:
 
 ---
 
+## Phase 7: CLI Simplification (Post-Spec Addition)
+
+**Purpose**: Simplify CLI to config-file-first approach per user request
+
+**Note**: This phase was added after initial spec/tasks generation based on user decision to further simplify configuration.
+
+**Remove Configuration CLI Flags:**
+- [x] T070 [US4+] Remove `--mount-paths` CLI flag from internal/config/config.go
+- [x] T071 [P] [US4+] Remove `--canary-file` CLI flag from internal/config/config.go
+- [x] T072 [P] [US4+] Remove `--check-interval` CLI flag from internal/config/config.go
+- [x] T073 [P] [US4+] Remove `--read-timeout` CLI flag from internal/config/config.go
+- [x] T074 [P] [US4+] Remove `--shutdown-timeout` CLI flag from internal/config/config.go
+- [x] T075 [P] [US4+] Remove `--failure-threshold` CLI flag from internal/config/config.go
+- [x] T076 [US4+] Remove `parseMountPaths` helper function from internal/config/config.go
+
+**Documentation Updates:**
+- [x] T077 [US4+] Update README.md CLI flags table (keep only --config, --http-port, --log-level, --log-format)
+- [x] T078 [US4+] Update README.md Docker example to use config file
+- [x] T079 [US4+] Update README.md Kubernetes example to use ConfigMap
+- [x] T080 [US4+] Update docs/use-cases.md UC-10 for config-file-first approach
+- [x] T081 [US4+] Update Makefile `run` target to use config file instead of env vars
+
+**Config File Updates:**
+- [x] T082 [P] [US4+] Update deploy/kind/configmap.yaml: debounceThreshold → failureThreshold
+- [x] T083 [P] [US4+] Update deploy/kind/test-configmap.yaml: debounceThreshold → failureThreshold
+- [x] T084 [P] [US4+] Update config.example.json: debounceThreshold → failureThreshold
+
+**Verification:**
+- [x] T085 [US4+] Update BREAKING_CHANGES.md to document removed CLI flags
+- [x] T086 [US4+] Verify with `go build ./...` - build must succeed
+- [x] T087 [US4+] Verify with `go test ./...` - all tests must pass
+
+**Checkpoint**: CLI simplification complete - only essential runtime flags remain
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -189,6 +225,7 @@ Based on plan.md structure:
 - **US3 (Phase 4)**: Independent of US2 - documentation only (can run parallel to US2)
 - **US4 (Phase 5)**: Independent of US2/US3 - can run after US1 (can run parallel to US2/US3)
 - **Polish (Phase 6)**: Depends on all user stories complete
+- **CLI Simplification (Phase 7)**: Post-spec addition - depends on Phase 6 complete
 
 ### User Story Dependencies
 
@@ -271,6 +308,7 @@ Developer C: US4 (environment variable removal)
 4. US3 completely (T038-T041) - quick, docs only
 5. US4 completely (T042-T063) - larger, breaking change
 6. Polish (T064-T069) - final verification
+7. CLI Simplification (T070-T087) - post-spec config-file-first approach
 
 ---
 
@@ -278,7 +316,9 @@ Developer C: US4 (environment variable removal)
 
 - [P] tasks = different files, no dependencies within that phase
 - [Story] label maps task to specific user story for traceability
+- [US4+] label indicates post-spec CLI simplification tasks
 - US1 MUST complete before US2-US4 due to import dependencies
 - US3 and US4 are independent of US2 and each other
 - Verify tests pass after each user story before proceeding
-- Breaking change (US4) should be clearly communicated in release notes
+- Breaking changes (US4 + CLI simplification) should be clearly communicated in release notes
+- **Total tasks**: 87 (69 original + 18 CLI simplification)
