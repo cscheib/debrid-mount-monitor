@@ -83,6 +83,21 @@ type Config struct {
 	RetryBackoffMax     time.Duration
 }
 
+// K8sClientInterface defines the Kubernetes client operations needed by the watchdog.
+// This interface enables dependency injection for testing.
+type K8sClientInterface interface {
+	// DeletePod deletes the specified pod.
+	DeletePod(ctx context.Context, name string) error
+	// IsPodTerminating checks if the pod is being deleted.
+	IsPodTerminating(ctx context.Context, name string) (bool, error)
+	// CanDeletePods validates RBAC permissions.
+	CanDeletePods(ctx context.Context) (bool, error)
+	// CreateEvent creates a Kubernetes event.
+	CreateEvent(ctx context.Context, event *RestartEvent) error
+	// Namespace returns the configured namespace.
+	Namespace() string
+}
+
 // Watchdog monitors mount health and triggers pod restarts when mounts become unhealthy.
 type Watchdog struct {
 	mu     sync.Mutex
@@ -92,8 +107,8 @@ type Watchdog struct {
 	// Configuration
 	config Config
 
-	// Dependencies
-	k8sClient *K8sClient
+	// Dependencies - k8sClient implements K8sClientInterface
+	k8sClient K8sClientInterface
 	podName   string
 	namespace string
 
@@ -435,4 +450,18 @@ func (w *Watchdog) State() WatchdogState {
 // Used for testing to avoid actually exiting the process.
 func (w *Watchdog) SetExitFunc(f func(int)) {
 	w.exitFunc = f
+}
+
+// SetK8sClient sets the Kubernetes client for testing purposes.
+// This allows injecting a mock client to test error handling paths.
+func (w *Watchdog) SetK8sClient(client K8sClientInterface) {
+	w.k8sClient = client
+}
+
+// SetArmed sets the watchdog state to Armed for testing.
+// This bypasses the normal in-cluster detection for unit testing.
+func (w *Watchdog) SetArmed() {
+	w.mu.Lock()
+	w.state.State = WatchdogArmed
+	w.mu.Unlock()
 }

@@ -1,5 +1,5 @@
 .PHONY: build test lint clean docker docker-debug run help \
-	kind-create kind-delete kind-status kind-load kind-deploy kind-undeploy kind-logs kind-redeploy kind-help
+	kind-create kind-delete kind-status kind-load kind-deploy kind-undeploy kind-logs kind-redeploy kind-help kind-test
 
 # Build variables
 BINARY_NAME=mount-monitor
@@ -78,6 +78,7 @@ help:
 	@echo "  kind-undeploy   - Remove deployment from cluster"
 	@echo "  kind-logs       - Tail mount-monitor logs"
 	@echo "  kind-redeploy   - Rebuild, reload, and restart"
+	@echo "  kind-test       - Run automated e2e watchdog test"
 	@echo "  kind-help       - Show KIND workflow help"
 
 # ============================================================================
@@ -86,6 +87,9 @@ help:
 
 # KIND cluster name (customizable via environment variable)
 KIND_CLUSTER_NAME ?= debrid-mount-monitor
+
+# KIND namespace (customizable via environment variable)
+KIND_NAMESPACE ?= mount-monitor-dev
 
 # Create local KIND cluster
 kind-create:
@@ -113,8 +117,8 @@ kind-status:
 	@echo "=== Nodes ==="
 	@kubectl get nodes 2>/dev/null || echo "Cannot connect to cluster"
 	@echo ""
-	@echo "=== Pods in mount-monitor-dev namespace ==="
-	@kubectl -n mount-monitor-dev get pods 2>/dev/null || echo "Namespace not found or no pods"
+	@echo "=== Pods in $(KIND_NAMESPACE) namespace ==="
+	@kubectl -n $(KIND_NAMESPACE) get pods 2>/dev/null || echo "Namespace not found or no pods"
 
 # Build image and load into KIND cluster
 kind-load: docker
@@ -123,12 +127,16 @@ kind-load: docker
 	@echo "Image loaded successfully."
 
 # Deploy monitor to KIND cluster
+# Note: Replaces hardcoded namespace in manifests with $(KIND_NAMESPACE)
 kind-deploy:
-	@echo "Deploying to KIND cluster..."
-	kubectl apply -f deploy/kind/
+	@echo "Deploying to KIND cluster (namespace: $(KIND_NAMESPACE))..."
+	@kubectl create namespace $(KIND_NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	@for file in deploy/kind/*.yaml; do \
+		sed 's/namespace: mount-monitor-dev/namespace: $(KIND_NAMESPACE)/g' "$$file" | kubectl apply -f -; \
+	done
 	@echo ""
 	@echo "Waiting for pods to be ready..."
-	kubectl -n mount-monitor-dev wait --for=condition=ready pod -l app=test-app-with-monitor --timeout=60s || true
+	kubectl -n $(KIND_NAMESPACE) wait --for=condition=ready pod -l app=test-app-with-monitor --timeout=60s || true
 	@echo ""
 	@echo "Deployment complete!"
 	@echo "  View logs: make kind-logs"
@@ -136,22 +144,22 @@ kind-deploy:
 
 # Remove deployment from cluster
 kind-undeploy:
-	@echo "Removing deployment from cluster..."
-	kubectl delete namespace mount-monitor-dev --ignore-not-found
+	@echo "Removing deployment from $(KIND_NAMESPACE) namespace..."
+	kubectl delete namespace $(KIND_NAMESPACE) --ignore-not-found
 	@echo "Deployment removed."
 
 # Tail mount-monitor container logs
 kind-logs:
-	kubectl -n mount-monitor-dev logs -l app=test-app-with-monitor -c mount-monitor -f
+	kubectl -n $(KIND_NAMESPACE) logs -l app=test-app-with-monitor -c mount-monitor -f
 
 # Rebuild, reload, and restart deployment (quick iteration)
 kind-redeploy: docker
-	@echo "Rebuilding and redeploying..."
+	@echo "Rebuilding and redeploying to $(KIND_NAMESPACE)..."
 	kind load docker-image $(BINARY_NAME):$(VERSION) --name $(KIND_CLUSTER_NAME)
-	kubectl -n mount-monitor-dev rollout restart deployment/test-app-with-monitor
+	kubectl -n $(KIND_NAMESPACE) rollout restart deployment/test-app-with-monitor
 	@echo ""
 	@echo "Waiting for rollout to complete..."
-	kubectl -n mount-monitor-dev rollout status deployment/test-app-with-monitor --timeout=60s
+	kubectl -n $(KIND_NAMESPACE) rollout status deployment/test-app-with-monitor --timeout=60s
 	@echo ""
 	@echo "Redeploy complete!"
 
@@ -169,15 +177,26 @@ kind-help:
 	@echo "After code changes:"
 	@echo "  make kind-redeploy"
 	@echo ""
-	@echo "Simulate mount failure:"
-	@echo "  POD=\$$(kubectl -n mount-monitor-dev get pod -l app=test-app-with-monitor -o name)"
-	@echo "  kubectl -n mount-monitor-dev exec \$$POD -c main-app -- rm /mnt/test/.health-check"
+	@echo "Simulate mount failure (using current namespace: $(KIND_NAMESPACE)):"
+	@echo "  POD=\$$(kubectl -n $(KIND_NAMESPACE) get pod -l app=test-app-with-monitor -o name)"
+	@echo "  kubectl -n $(KIND_NAMESPACE) exec \$$POD -c main-app -- rm /mnt/test/.health-check"
 	@echo ""
 	@echo "Restore mount health:"
-	@echo "  kubectl -n mount-monitor-dev exec \$$POD -c main-app -- sh -c 'echo healthy > /mnt/test/.health-check'"
+	@echo "  kubectl -n $(KIND_NAMESPACE) exec \$$POD -c main-app -- sh -c 'echo healthy > /mnt/test/.health-check'"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make kind-delete"
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  KIND_CLUSTER_NAME  - Cluster name (default: debrid-mount-monitor)"
+	@echo "  KIND_NAMESPACE     - Deployment namespace (default: mount-monitor-dev)"
+	@echo "  KEEP_CLUSTER       - Set to 1 to preserve cluster after kind-test"
+	@echo ""
+	@echo "Deploy to custom namespace:"
+	@echo "  KIND_NAMESPACE=my-namespace make kind-deploy"
+
+# Run automated e2e watchdog test
+# Creates temporary cluster, tests pod restart behavior, cleans up
+kind-test:
+	@echo "Running automated e2e watchdog test..."
+	@KIND_CLUSTER_NAME=$(KIND_CLUSTER_NAME) KIND_NAMESPACE=$(KIND_NAMESPACE) ./scripts/kind-e2e-test.sh

@@ -9,6 +9,8 @@ Auto-generated from all feature plans. Last updated: 2025-12-14
 - N/A (infrastructure/configuration only - no Go code changes) + KIND v0.20+, kubectl v1.28+, Docker (004-kind-local-dev)
 - N/A (no persistent storage required) (004-kind-local-dev)
 - Go 1.21+ (required for log/slog structured logging) + Standard library only (net/http, encoding/json, os, time, context, log/slog) + Kubernetes REST API via net/http (no client-go dependency) (005-pod-restart-watchdog)
+- Go 1.21+ (existing project standard) + Standard library only (no external dependencies per constitution) (006-dev-tooling-improvements)
+- N/A (test infrastructure, no persistent storage) (006-dev-tooling-improvements)
 
 - Go 1.21+ (required for log/slog structured logging) + Standard library only (net/http, os/signal, context, log/slog, encoding/json, time, sync) (001-mount-health-monitor)
 
@@ -28,9 +30,9 @@ tests/
 Go 1.21+ (required for log/slog structured logging): Follow standard conventions
 
 ## Recent Changes
+- 006-dev-tooling-improvements: Added Go 1.21+ (existing project standard) + Standard library only (no external dependencies per constitution)
 - 005-pod-restart-watchdog: Added Go 1.21+ (required for log/slog structured logging) + Standard library only (net/http, encoding/json, os, time, context, log/slog) + Kubernetes REST API via net/http (no client-go dependency)
 - 004-kind-local-dev: Added N/A (infrastructure/configuration only - no Go code changes) + KIND v0.20+, kubectl v1.28+, Docker
-- 003-github-issues-batch: Added Go 1.21+ (required for log/slog structured logging) + Standard library only (no external dependencies)
 
 
 <!-- MANUAL ADDITIONS START -->

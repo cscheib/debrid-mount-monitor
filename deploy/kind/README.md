@@ -48,6 +48,7 @@ make kind-logs
 | `kind-undeploy` | Remove the deployment |
 | `kind-logs` | Tail the mount-monitor container logs |
 | `kind-redeploy` | Rebuild, reload, and restart (quick iteration) |
+| `kind-test` | Run automated e2e watchdog test |
 | `kind-help` | Show workflow help |
 
 ## Quick Iteration Workflow
@@ -178,11 +179,35 @@ kubectl -n mount-monitor-dev exec $POD -c main-app -- sh -c 'echo "healthy" > /m
 # 7. Watch recovery in logs and pod status returning to Ready
 ```
 
+## Automated E2E Testing
+
+Run the full watchdog e2e test with a single command:
+
+```bash
+make kind-test
+```
+
+This will:
+1. Create a temporary KIND cluster
+2. Build and load the Docker image
+3. Deploy with test-specific configuration (faster timeouts)
+4. Simulate a mount failure by removing the canary file
+5. Verify the watchdog triggers pod deletion
+6. Check for WatchdogRestart Kubernetes event
+7. Clean up the cluster (unless `KEEP_CLUSTER=1`)
+
+**Keep cluster for debugging:**
+```bash
+KEEP_CLUSTER=1 make kind-test
+```
+
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `KIND_CLUSTER_NAME` | `debrid-mount-monitor` | Name of the KIND cluster |
+| `KIND_NAMESPACE` | `mount-monitor-dev` | Namespace for deployment |
+| `KEEP_CLUSTER` | `0` | Set to `1` to preserve cluster after `kind-test` |
 
 ### Using a Custom Cluster Name
 
@@ -197,6 +222,8 @@ KIND_CLUSTER_NAME=my-cluster make kind-delete
 ```
 
 ## Troubleshooting
+
+For comprehensive troubleshooting of watchdog, RBAC, and mount monitoring issues, see [docs/troubleshooting.md](../../docs/troubleshooting.md).
 
 ### Pod Stuck in ImagePullBackOff
 
@@ -295,10 +322,12 @@ kubectl config use-context kind-debrid-mount-monitor
 | File | Description |
 |------|-------------|
 | `kind-config.yaml` | KIND cluster configuration (single node, K8s v1.28) |
-| `namespace.yaml` | Kubernetes namespace for isolation |
+| `00-namespace.yaml` | Kubernetes namespace for isolation (prefixed to apply first) |
 | `configmap.yaml` | JSON config file for mount-monitor (mounted as `/etc/mount-monitor/config.json`) |
 | `deployment.yaml` | Sidecar deployment with probes, init container, and config file mount |
+| `rbac.yaml` | ServiceAccount, Role, and RoleBinding for watchdog pod deletion |
 | `service.yaml` | NodePort service exposing health endpoints on port 30080 |
+| `test-configmap.yaml` | Test-specific config with faster timeouts for e2e testing |
 
 ### Configuration Approach
 

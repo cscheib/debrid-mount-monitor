@@ -193,15 +193,29 @@ make kind-logs
 # Rebuild and redeploy after code changes
 make kind-redeploy
 
+# Run automated e2e watchdog test
+make kind-test
+
 # Clean up
 make kind-delete
+```
+
+**Custom Namespace:** Deploy to a custom namespace:
+```bash
+KIND_NAMESPACE=my-namespace make kind-deploy
 ```
 
 See [deploy/kind/README.md](deploy/kind/README.md) for detailed documentation on:
 - Simulating mount failures
 - Verifying probe behavior
 - Quick iteration workflow
-- Troubleshooting
+- Environment variables (`KIND_CLUSTER_NAME`, `KIND_NAMESPACE`, `KEEP_CLUSTER`)
+
+See [docs/troubleshooting.md](docs/troubleshooting.md) for:
+- Common issues and resolutions
+- RBAC troubleshooting
+- Debug logging
+- Diagnostic commands
 
 ## License
 
