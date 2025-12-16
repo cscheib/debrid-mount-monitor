@@ -173,6 +173,36 @@ make docker
 make run
 ```
 
+### Local Kubernetes Development
+
+For testing in a real Kubernetes environment locally, we provide KIND (Kubernetes IN Docker) support:
+
+```bash
+# Create a local KIND cluster
+make kind-create
+
+# Build and load the image into KIND
+make kind-load
+
+# Deploy the monitor as a sidecar
+make kind-deploy
+
+# View logs
+make kind-logs
+
+# Rebuild and redeploy after code changes
+make kind-redeploy
+
+# Clean up
+make kind-delete
+```
+
+See [deploy/kind/README.md](deploy/kind/README.md) for detailed documentation on:
+- Simulating mount failures
+- Verifying probe behavior
+- Quick iteration workflow
+- Troubleshooting
+
 ## License
 
 MIT
