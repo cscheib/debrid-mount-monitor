@@ -60,7 +60,7 @@ data:
     {
       "checkInterval": "10s",
       "readTimeout": "5s",
-      "debounceThreshold": 3,
+      "failureThreshold": 3,  // ⚠️ [007]: Renamed from "debounceThreshold"
       "httpPort": 8080,
       "logLevel": "debug",
       "logFormat": "json",

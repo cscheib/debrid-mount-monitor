@@ -125,19 +125,19 @@ As a container orchestrator (Kubernetes, Docker), I need the monitor to shut dow
 
 ### Configuration Options
 
-All configuration is provided via environment variables or command-line flags. Flags take precedence over environment variables. *(Extended by [002-json-config](../002-json-config/spec.md): adds JSON config file with precedence Defaults → Config File → Env Vars → CLI Flags)*
+~~All configuration is provided via environment variables or command-line flags. Flags take precedence over environment variables.~~ *(Extended by [002-json-config](../002-json-config/spec.md), then simplified by [007-tech-debt-cleanup](../007-tech-debt-cleanup/spec.md): **env vars removed**, most CLI flags removed, JSON config is primary method)*
 
 | Setting | Env Var | Flag | Default | Description |
 |---------|---------|------|---------|-------------|
-| Mount paths | `MOUNT_PATHS` | `--mount-paths` | (required) | Comma-separated list of mount paths to monitor |
-| Canary file | `CANARY_FILE` | `--canary-file` | `.health-check` | Relative path to canary file within each mount |
-| Check interval | `CHECK_INTERVAL` | `--check-interval` | `30s` | Time between health checks |
-| Read timeout | `READ_TIMEOUT` | `--read-timeout` | `5s` | Timeout for canary file read operation |
-| Shutdown timeout | `SHUTDOWN_TIMEOUT` | `--shutdown-timeout` | `30s` | Maximum time for graceful shutdown |
-| Debounce threshold | `DEBOUNCE_THRESHOLD` | `--debounce-threshold` | `3` | Consecutive failures before marking unhealthy |
-| HTTP port | `HTTP_PORT` | `--http-port` | `8080` | Port for health probe endpoints |
-| Log level | `LOG_LEVEL` | `--log-level` | `info` | Log verbosity: debug, info, warn, error |
-| Log format | `LOG_FORMAT` | `--log-format` | `json` | Log output format: json, text |
+| Mount paths | ~~`MOUNT_PATHS`~~ | ~~`--mount-paths`~~ | (required) | Comma-separated list of mount paths to monitor | *⚠️ [007]: Use JSON config `mounts[]`*
+| Canary file | ~~`CANARY_FILE`~~ | ~~`--canary-file`~~ | `.health-check` | Relative path to canary file within each mount | *⚠️ [007]: Use JSON config `canaryFile`*
+| Check interval | ~~`CHECK_INTERVAL`~~ | ~~`--check-interval`~~ | `30s` | Time between health checks | *⚠️ [007]: Use JSON config `checkInterval`*
+| Read timeout | ~~`READ_TIMEOUT`~~ | ~~`--read-timeout`~~ | `5s` | Timeout for canary file read operation | *⚠️ [007]: Use JSON config `readTimeout`*
+| Shutdown timeout | ~~`SHUTDOWN_TIMEOUT`~~ | ~~`--shutdown-timeout`~~ | `30s` | Maximum time for graceful shutdown | *⚠️ [007]: Use JSON config `shutdownTimeout`*
+| Debounce threshold | ~~`DEBOUNCE_THRESHOLD`~~ | ~~`--debounce-threshold`~~ | `3` | Consecutive failures before marking unhealthy | *⚠️ [007]: Use JSON config `failureThreshold`*
+| HTTP port | ~~`HTTP_PORT`~~ | `--http-port` | `8080` | Port for health probe endpoints | *⚠️ [007]: Env var removed, CLI flag kept*
+| Log level | ~~`LOG_LEVEL`~~ | `--log-level` | `info` | Log verbosity: debug, info, warn, error | *⚠️ [007]: Env var removed, CLI flag kept*
+| Log format | ~~`LOG_FORMAT`~~ | `--log-format` | `json` | Log output format: json, text | *⚠️ [007]: Env var removed, CLI flag kept*
 
 ## Assumptions
 

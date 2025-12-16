@@ -20,7 +20,7 @@ Represents the JSON configuration file structure.
 | checkInterval | string (duration) | No | "30s" | Time between health checks |
 | readTimeout | string (duration) | No | "5s" | Timeout for canary file read |
 | shutdownTimeout | string (duration) | No | "30s" | Graceful shutdown timeout |
-| debounceThreshold | int | No | 3 | Consecutive failures before unhealthy |
+| ~~debounceThreshold~~ `failureThreshold` | int | No | 3 | Consecutive failures before unhealthy | *⚠️ [007]: Renamed*
 | httpPort | int | No | 8080 | Port for health endpoints |
 | logLevel | string | No | "info" | Log level (debug/info/warn/error) |
 | logFormat | string | No | "json" | Log format (json/text) |

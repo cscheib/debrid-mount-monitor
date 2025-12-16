@@ -49,17 +49,17 @@ This feature involves infrastructure configuration rather than application data.
 | name | `mount-monitor-config` | Monitor configuration |
 | namespace | `mount-monitor-dev` | Owning namespace |
 
-**Data Fields**:
+**Data Fields**: *⚠️ [007]: Env vars below have been removed; use JSON config file instead (see [007-tech-debt-cleanup](../007-tech-debt-cleanup/BREAKING_CHANGES.md))*
 
 | Key | Value | Description |
 |-----|-------|-------------|
-| `MOUNT_PATHS` | `/mnt/test` | Paths to monitor |
-| `CANARY_FILE` | `.health-check` | Canary filename |
-| `CHECK_INTERVAL` | `10s` | Faster interval for dev |
-| `DEBOUNCE_THRESHOLD` | `3` | Failures before unhealthy |
-| `LOG_LEVEL` | `debug` | Verbose logging for dev |
-| `LOG_FORMAT` | `json` | Structured output |
-| `HTTP_PORT` | `8080` | Health endpoint port |
+| ~~`MOUNT_PATHS`~~ | `/mnt/test` | Paths to monitor | *Use JSON `mounts[]`*
+| ~~`CANARY_FILE`~~ | `.health-check` | Canary filename | *Use JSON `canaryFile`*
+| ~~`CHECK_INTERVAL`~~ | `10s` | Faster interval for dev | *Use JSON `checkInterval`*
+| ~~`DEBOUNCE_THRESHOLD`~~ | `3` | Failures before unhealthy | *Use JSON `failureThreshold`*
+| ~~`LOG_LEVEL`~~ | `debug` | Verbose logging for dev | *Use `--log-level` CLI flag*
+| ~~`LOG_FORMAT`~~ | `json` | Structured output | *Use `--log-format` CLI flag*
+| ~~`HTTP_PORT`~~ | `8080` | Health endpoint port | *Use `--http-port` CLI flag*
 
 ---
 
@@ -179,19 +179,19 @@ KIND Cluster
 
 ---
 
-## Environment Variables
+## ~~Environment Variables~~ JSON Configuration *⚠️ [007]: Section superseded*
 
-The mount-monitor container receives configuration via ConfigMap:
+~~The mount-monitor container receives configuration via ConfigMap:~~ *⚠️ [007]: Configuration is now via JSON config file mounted from ConfigMap, not env vars*
 
-| Variable | Source | Purpose |
-|----------|--------|---------|
-| `MOUNT_PATHS` | ConfigMap | Paths to monitor |
-| `CANARY_FILE` | ConfigMap | Health check filename |
-| `CHECK_INTERVAL` | ConfigMap | Check frequency |
-| `DEBOUNCE_THRESHOLD` | ConfigMap | Failure threshold |
-| `LOG_LEVEL` | ConfigMap | Logging verbosity |
-| `LOG_FORMAT` | ConfigMap | Log output format |
-| `HTTP_PORT` | ConfigMap | Health server port |
+| Variable | Source | Purpose | *⚠️ [007] Replacement*
+|----------|--------|---------|----------------------|
+| ~~`MOUNT_PATHS`~~ | ~~ConfigMap~~ | Paths to monitor | *JSON `mounts[]`*
+| ~~`CANARY_FILE`~~ | ~~ConfigMap~~ | Health check filename | *JSON `canaryFile`*
+| ~~`CHECK_INTERVAL`~~ | ~~ConfigMap~~ | Check frequency | *JSON `checkInterval`*
+| ~~`DEBOUNCE_THRESHOLD`~~ | ~~ConfigMap~~ | Failure threshold | *JSON `failureThreshold`*
+| ~~`LOG_LEVEL`~~ | ~~ConfigMap~~ | Logging verbosity | *CLI `--log-level`*
+| ~~`LOG_FORMAT`~~ | ~~ConfigMap~~ | Log output format | *CLI `--log-format`*
+| ~~`HTTP_PORT`~~ | ~~ConfigMap~~ | Health server port | *CLI `--http-port`*
 
 ---
 

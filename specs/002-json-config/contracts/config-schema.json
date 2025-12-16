@@ -23,9 +23,9 @@
       "default": "30s",
       "examples": ["30s", "1m"]
     },
-    "debounceThreshold": {
+    "failureThreshold": {
       "type": "integer",
-      "description": "Default consecutive failures before marking mount unhealthy",
+      "description": "Default consecutive failures before marking mount unhealthy. [007]: Renamed from debounceThreshold",
       "default": 3,
       "minimum": 1
     },
