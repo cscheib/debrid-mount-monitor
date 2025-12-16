@@ -85,7 +85,7 @@ As a developer running multiple test environments, I need to customize the Kuber
 
 1. **Given** `KIND_NAMESPACE` environment variable is set to "test-ns", **When** `make kind-deploy` runs, **Then** all resources (deployment, configmap, RBAC) are created in the "test-ns" namespace.
 
-2. **Given** `KIND_NAMESPACE` is not set, **When** `make kind-deploy` runs, **Then** resources are created in the default namespace (currently "default").
+2. **Given** `KIND_NAMESPACE` is not set, **When** `make kind-deploy` runs, **Then** resources are created in the default namespace ("mount-monitor-dev").
 
 3. **Given** a custom namespace is specified, **When** the namespace doesn't exist, **Then** the deployment script creates it automatically.
 
@@ -113,7 +113,7 @@ As a developer running multiple test environments, I need to customize the Kuber
 - **FR-006**: The kind-test target MUST verify a Kubernetes event with reason "WatchdogRestart" was created.
 - **FR-007**: The kind-test target MUST clean up all test resources and delete the cluster on completion (configurable via KEEP_CLUSTER).
 - **FR-008**: The kind-test target MUST exit with code 0 on success and non-zero on failure.
-- **FR-009**: The kind-test target MUST complete within 5 minutes under normal conditions.
+- **FR-009**: The kind-test target MUST complete within 5 minutes under normal conditions (Docker running, network available, no pre-existing cluster conflicts).
 
 **Watchdog Unit Tests (US2)**
 
