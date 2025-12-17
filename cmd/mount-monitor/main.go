@@ -9,11 +9,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/chris/debrid-mount-monitor/internal/config"
-	"github.com/chris/debrid-mount-monitor/internal/health"
-	"github.com/chris/debrid-mount-monitor/internal/monitor"
-	"github.com/chris/debrid-mount-monitor/internal/server"
-	"github.com/chris/debrid-mount-monitor/internal/watchdog"
+	"github.com/cscheib/debrid-mount-monitor/internal/config"
+	"github.com/cscheib/debrid-mount-monitor/internal/health"
+	"github.com/cscheib/debrid-mount-monitor/internal/monitor"
+	"github.com/cscheib/debrid-mount-monitor/internal/server"
+	"github.com/cscheib/debrid-mount-monitor/internal/watchdog"
 )
 
 // Version is set at build time via ldflags.
@@ -47,7 +47,7 @@ func main() {
 		"check_interval", cfg.CheckInterval.String(),
 		"read_timeout", cfg.ReadTimeout.String(),
 		"shutdown_timeout", cfg.ShutdownTimeout.String(),
-		"debounce_threshold", cfg.DebounceThreshold,
+		"failure_threshold", cfg.FailureThreshold,
 		"http_port", cfg.HTTPPort,
 		"log_level", cfg.LogLevel,
 		"log_format", cfg.LogFormat,
@@ -75,11 +75,11 @@ func main() {
 		// Legacy: use MountPaths with global settings
 		mounts = make([]*health.Mount, len(cfg.MountPaths))
 		for i, path := range cfg.MountPaths {
-			mounts[i] = health.NewMount("", path, cfg.CanaryFile, cfg.DebounceThreshold)
+			mounts[i] = health.NewMount("", path, cfg.CanaryFile, cfg.FailureThreshold)
 			logger.Info("mount registered",
 				"path", path,
 				"canary", mounts[i].CanaryPath,
-				"failureThreshold", cfg.DebounceThreshold,
+				"failureThreshold", cfg.FailureThreshold,
 			)
 		}
 	}
@@ -88,7 +88,7 @@ func main() {
 	checker := health.NewChecker(cfg.ReadTimeout)
 
 	// Create monitor
-	mon := monitor.New(mounts, checker, cfg.CheckInterval, cfg.DebounceThreshold, logger)
+	mon := monitor.New(mounts, checker, cfg.CheckInterval, cfg.FailureThreshold, logger)
 
 	// Initialize watchdog
 	// Read pod identity from Downward API environment variables

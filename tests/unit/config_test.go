@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chris/debrid-mount-monitor/internal/config"
+	"github.com/cscheib/debrid-mount-monitor/internal/config"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -19,8 +19,8 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.ReadTimeout != 5*time.Second {
 		t.Errorf("expected default read timeout 5s, got %v", cfg.ReadTimeout)
 	}
-	if cfg.DebounceThreshold != 3 {
-		t.Errorf("expected default debounce threshold 3, got %d", cfg.DebounceThreshold)
+	if cfg.FailureThreshold != 3 {
+		t.Errorf("expected default failure threshold 3, got %d", cfg.FailureThreshold)
 	}
 	if cfg.HTTPPort != 8080 {
 		t.Errorf("expected default HTTP port 8080, got %d", cfg.HTTPPort)
@@ -35,15 +35,15 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestConfigValidation_Valid(t *testing.T) {
 	cfg := &config.Config{
-		MountPaths:        []string{"/mnt/test"},
-		CanaryFile:        ".health-check",
-		CheckInterval:     30 * time.Second,
-		ReadTimeout:       5 * time.Second,
-		ShutdownTimeout:   30 * time.Second,
-		DebounceThreshold: 3,
-		HTTPPort:          8080,
-		LogLevel:          "info",
-		LogFormat:         "json",
+		MountPaths:       []string{"/mnt/test"},
+		CanaryFile:       ".health-check",
+		CheckInterval:    30 * time.Second,
+		ReadTimeout:      5 * time.Second,
+		ShutdownTimeout:  30 * time.Second,
+		FailureThreshold: 3,
+		HTTPPort:         8080,
+		LogLevel:         "info",
+		LogFormat:        "json",
 		Watchdog: config.WatchdogConfig{
 			Enabled:             false,
 			RestartDelay:        0,
@@ -102,14 +102,14 @@ func TestConfigValidation_ReadTimeoutExceedsCheckInterval(t *testing.T) {
 	}
 }
 
-func TestConfigValidation_InvalidDebounceThreshold(t *testing.T) {
+func TestConfigValidation_InvalidFailureThreshold(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.MountPaths = []string{"/mnt/test"}
-	cfg.DebounceThreshold = 0
+	cfg.FailureThreshold = 0
 
 	err := cfg.Validate()
 	if err == nil {
-		t.Error("expected validation error for debounce threshold < 1")
+		t.Error("expected validation error for failure threshold < 1")
 	}
 }
 

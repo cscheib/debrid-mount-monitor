@@ -1,4 +1,4 @@
-// Package config handles configuration parsing from files, environment variables, and flags.
+// Package config handles configuration parsing from JSON files and CLI flags.
 package config
 
 import (
@@ -48,16 +48,16 @@ type FileWatchdogConfig struct {
 
 // FileConfig represents the JSON configuration file structure.
 type FileConfig struct {
-	CheckInterval     Duration           `json:"checkInterval,omitempty"`
-	ReadTimeout       Duration           `json:"readTimeout,omitempty"`
-	ShutdownTimeout   Duration           `json:"shutdownTimeout,omitempty"`
-	DebounceThreshold int                `json:"debounceThreshold,omitempty"`
-	HTTPPort          int                `json:"httpPort,omitempty"`
-	LogLevel          string             `json:"logLevel,omitempty"`
-	LogFormat         string             `json:"logFormat,omitempty"`
-	CanaryFile        string             `json:"canaryFile,omitempty"`
-	Mounts            []FileMountConfig  `json:"mounts,omitempty"`
-	Watchdog          FileWatchdogConfig `json:"watchdog,omitempty"`
+	CheckInterval    Duration           `json:"checkInterval,omitempty"`
+	ReadTimeout      Duration           `json:"readTimeout,omitempty"`
+	ShutdownTimeout  Duration           `json:"shutdownTimeout,omitempty"`
+	FailureThreshold int                `json:"failureThreshold,omitempty"`
+	HTTPPort         int                `json:"httpPort,omitempty"`
+	LogLevel         string             `json:"logLevel,omitempty"`
+	LogFormat        string             `json:"logFormat,omitempty"`
+	CanaryFile       string             `json:"canaryFile,omitempty"`
+	Mounts           []FileMountConfig  `json:"mounts,omitempty"`
+	Watchdog         FileWatchdogConfig `json:"watchdog,omitempty"`
 }
 
 // FileMountConfig represents per-mount configuration in the JSON file.
@@ -166,7 +166,7 @@ func validateFileConfig(fc *FileConfig) error {
 }
 
 // applyFileConfig applies values from FileConfig to the runtime Config.
-// Values from the file override defaults but will be overridden by env vars/flags.
+// Values from the file override defaults but will be overridden by CLI flags.
 func applyFileConfig(c *Config, fc *FileConfig) {
 	// Apply global settings if specified
 	if fc.CheckInterval > 0 {
@@ -178,8 +178,8 @@ func applyFileConfig(c *Config, fc *FileConfig) {
 	if fc.ShutdownTimeout > 0 {
 		c.ShutdownTimeout = time.Duration(fc.ShutdownTimeout)
 	}
-	if fc.DebounceThreshold > 0 {
-		c.DebounceThreshold = fc.DebounceThreshold
+	if fc.FailureThreshold > 0 {
+		c.FailureThreshold = fc.FailureThreshold
 	}
 	if fc.HTTPPort > 0 {
 		c.HTTPPort = fc.HTTPPort
@@ -217,7 +217,7 @@ func applyFileConfig(c *Config, fc *FileConfig) {
 			if fm.FailureThreshold > 0 {
 				mc.FailureThreshold = fm.FailureThreshold
 			} else {
-				mc.FailureThreshold = c.DebounceThreshold
+				mc.FailureThreshold = c.FailureThreshold
 			}
 
 			c.Mounts[i] = mc

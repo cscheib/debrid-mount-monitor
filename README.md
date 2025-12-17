@@ -6,16 +6,16 @@ A Kubernetes sidecar container that monitors the health of debrid WebDAV mount p
 
 - Canary file health checking with configurable timeout
 - Kubernetes-native liveness and readiness probes
-- Debounce logic to prevent flapping on transient failures
+- Failure threshold logic to prevent flapping on transient failures
 - Structured JSON logging
 - Multi-architecture support (AMD64/ARM64)
 - Minimal container image (<20MB)
 
 ## Configuration
 
-Configuration can be done via JSON file, environment variables, or CLI flags.
+Configuration can be done via JSON file or CLI flags.
 
-**Precedence** (later overrides earlier): Defaults → Config File → Environment Variables → CLI Flags
+**Precedence** (later overrides earlier): Defaults → Config File → CLI Flags
 
 ### JSON Configuration File
 
@@ -26,7 +26,7 @@ Create a `config.json` file in your working directory or specify a path with `--
   "checkInterval": "30s",
   "readTimeout": "5s",
   "shutdownTimeout": "30s",
-  "debounceThreshold": 3,
+  "failureThreshold": 3,
   "httpPort": 8080,
   "logLevel": "info",
   "logFormat": "json",
@@ -42,6 +42,10 @@ Create a `config.json` file in your working directory or specify a path with `--
       "name": "tv",
       "path": "/mnt/tv",
       "failureThreshold": 5
+    },
+    {
+      "name": "local-data",
+      "path": "./data/local"
     }
   ]
 }
@@ -51,38 +55,30 @@ Create a `config.json` file in your working directory or specify a path with `--
 
 Each mount can override global settings:
 - `name`: Human-readable identifier (shown in logs and status)
-- `path`: Filesystem path to mount point (required)
-- `canaryFile`: Override global canary file for this mount
-- `failureThreshold`: Override global debounce threshold for this mount
+- `path`: Filesystem path to mount point (required) - can be absolute or relative
+- `canaryFile`: Override global canary file for this mount (always relative to mount path)
+- `failureThreshold`: Override global failure threshold for this mount
 
-### Environment Variables
+#### Path Configuration
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MOUNT_PATHS` | Comma-separated list of mount paths to monitor | (required) |
-| `CANARY_FILE` | Name of the canary file in each mount | `.health-check` |
-| `CHECK_INTERVAL` | Interval between health checks | `30s` |
-| `READ_TIMEOUT` | Timeout for canary file reads | `5s` |
-| `DEBOUNCE_THRESHOLD` | Consecutive failures before unhealthy | `3` |
-| `SHUTDOWN_TIMEOUT` | Maximum time for graceful shutdown | `30s` |
-| `HTTP_PORT` | Port for health probe endpoints | `8080` |
-| `LOG_LEVEL` | Log level (debug, info, warn, error) | `info` |
-| `LOG_FORMAT` | Log format (json, text) | `json` |
+**Mount Paths:** Mount paths can be specified as either absolute or relative paths:
+- Absolute: `/mnt/movies`, `/data/media/tv`
+- Relative: `./mounts/movies`, `../shared/media`
+
+Relative paths are resolved from the working directory where the monitor runs.
+
+**Canary Files:** Canary file paths are always relative to their respective mount path. For example, with a mount at `/mnt/movies` and canary file `.health-check`, the full canary path is `/mnt/movies/.health-check`.
 
 ### CLI Flags
+
+Most configuration is done via the JSON config file. Only essential runtime flags are provided:
 
 | Flag | Description |
 |------|-------------|
 | `--config`, `-c` | Path to JSON configuration file |
-| `--mount-paths` | Comma-separated list of mount paths |
-| `--canary-file` | Canary file name |
-| `--check-interval` | Health check interval |
-| `--read-timeout` | Canary file read timeout |
-| `--debounce-threshold` | Consecutive failures threshold |
-| `--shutdown-timeout` | Graceful shutdown timeout |
-| `--http-port` | HTTP server port |
-| `--log-level` | Log level |
-| `--log-format` | Log format |
+| `--http-port` | HTTP server port (default: 8080) |
+| `--log-level` | Log level: debug, info, warn, error (default: info) |
+| `--log-format` | Log format: json, text (default: json) |
 
 ## Security
 
@@ -118,14 +114,36 @@ The monitor will log a **warning** if the config file is world-writable (`chmod 
 
 ```bash
 docker run -v /mnt/debrid:/mnt/debrid:ro \
-  -e MOUNT_PATHS=/mnt/debrid \
+  -v $(pwd)/config.json:/app/config.json:ro \
   -p 8080:8080 \
   mount-monitor:latest
 ```
 
+With debug logging:
+
+```bash
+docker run -v /mnt/debrid:/mnt/debrid:ro \
+  -v $(pwd)/config.json:/app/config.json:ro \
+  -p 8080:8080 \
+  mount-monitor:latest \
+  --log-level=debug
+```
+
 ### Kubernetes
 
+Deploy with a ConfigMap for configuration:
+
 ```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mount-monitor-config
+data:
+  config.json: |
+    {
+      "mounts": [{"name": "debrid", "path": "/mnt/debrid"}]
+    }
+---
 apiVersion: v1
 kind: Pod
 spec:
@@ -134,9 +152,8 @@ spec:
     # your main application
   - name: mount-monitor
     image: mount-monitor:latest
-    env:
-    - name: MOUNT_PATHS
-      value: "/mnt/debrid"
+    args:
+    - --config=/app/config.json
     ports:
     - containerPort: 8080
     livenessProbe:
@@ -155,6 +172,14 @@ spec:
     - name: debrid-mount
       mountPath: /mnt/debrid
       readOnly: true
+    - name: config
+      mountPath: /app/config.json
+      subPath: config.json
+      readOnly: true
+  volumes:
+  - name: config
+    configMap:
+      name: mount-monitor-config
 ```
 
 ## Development

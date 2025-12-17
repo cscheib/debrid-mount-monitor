@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chris/debrid-mount-monitor/internal/health"
-	"github.com/chris/debrid-mount-monitor/internal/monitor"
-	"github.com/chris/debrid-mount-monitor/internal/server"
+	"github.com/cscheib/debrid-mount-monitor/internal/health"
+	"github.com/cscheib/debrid-mount-monitor/internal/monitor"
+	"github.com/cscheib/debrid-mount-monitor/internal/server"
 )
 
 func TestGracefulShutdown_ServerStops(t *testing.T) {

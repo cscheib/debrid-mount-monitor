@@ -51,8 +51,9 @@ docker-debug:
 	docker build -f Dockerfile.debug -t $(BINARY_NAME):$(VERSION)-debug .
 
 # Run locally with example config
+# Requires a config.json file in current directory or specify path with --config
 run:
-	MOUNT_PATHS=/tmp LOG_LEVEL=debug go run ./cmd/mount-monitor
+	go run ./cmd/mount-monitor --config=config.json --log-level=debug
 
 # Show help
 help:

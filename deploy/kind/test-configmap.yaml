@@ -3,8 +3,7 @@
 #
 # Differences from production configmap.yaml:
 # - checkInterval: 2s (vs 10s) - faster health check cycles
-# - debounceThreshold: 2 (vs 3) - fewer failures before unhealthy
-# - failureThreshold: 2 (vs 3) - faster state transition
+# - failureThreshold: 2 (vs 3) - fewer failures before unhealthy (global and per-mount)
 # - watchdog.restartDelay: 5s (vs 0s) - visible delay for verification
 #
 # Total time to trigger restart: ~4-6s (2 checks * 2s interval)
@@ -25,7 +24,7 @@ data:
       "checkInterval": "2s",
       "readTimeout": "1s",
       "shutdownTimeout": "10s",
-      "debounceThreshold": 2,
+      "failureThreshold": 2,
       "httpPort": 8080,
       "logLevel": "debug",
       "logFormat": "json",

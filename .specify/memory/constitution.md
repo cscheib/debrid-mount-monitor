@@ -1,15 +1,13 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.0.0 → 1.1.0 (MINOR - new section and principle added)
+Version change: 1.1.0 → 1.1.1 (PATCH - terminology and configuration clarifications)
 
-Modified principles: None
+Modified sections:
+- VI. Fail-Safe Orchestration: "debounce/threshold" → "failure threshold" (terminology alignment)
+- Runtime Behavior > Configuration: Updated to reflect JSON config + CLI flags as primary methods (env vars removed for user configuration)
 
-Added principles:
-- VI. Fail-Safe Orchestration
-
-Added sections:
-- Project Purpose & Domain (new top-level section)
+Added sections: None
 
 Removed sections: None
 
@@ -112,7 +110,7 @@ When mount health degrades, the service MUST take protective action to prevent d
 - Service startup gating MUST prevent dependent services from starting until mounts are verified healthy
 - Recovery actions MUST be idempotent (safe to retry)
 - The service MUST log all health state transitions and orchestration actions
-- False positive protection: brief transient failures SHOULD NOT trigger restarts (configurable debounce/threshold)
+- False positive protection: brief transient failures SHOULD NOT trigger restarts (configurable failure threshold)
 
 ## Build & Distribution Requirements
 
@@ -132,10 +130,10 @@ Recommended languages that satisfy these requirements: Go, Rust, C, Zig.
 ## Runtime Behavior
 
 **Configuration**: All configuration MUST be injectable via:
-- Environment variables (primary method for containers)
-- Command-line flags (for development and testing)
+- JSON configuration file (primary method for complex configurations with per-mount settings)
+- Command-line flags (for simple configurations and development/testing)
 
-Configuration files MAY be supported but MUST NOT be required.
+Configuration files MUST NOT be required for basic operation. Kubernetes runtime environment variables (`KUBERNETES_SERVICE_HOST`, `KUBERNETES_SERVICE_PORT`, `POD_NAME`, `POD_NAMESPACE`) are used for environment detection, not user configuration.
 
 **Observability**:
 - Structured logging (JSON) MUST be supported
@@ -164,4 +162,4 @@ This constitution defines the non-negotiable architectural constraints for the d
 - Violations MUST be justified in the Complexity Tracking section of the implementation plan
 - Unjustified violations are grounds for PR rejection
 
-**Version**: 1.1.0 | **Ratified**: 2025-12-14 | **Last Amended**: 2025-12-14
+**Version**: 1.1.1 | **Ratified**: 2025-12-14 | **Last Amended**: 2025-12-16

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chris/debrid-mount-monitor/internal/health"
+	"github.com/cscheib/debrid-mount-monitor/internal/health"
 )
 
 func TestNewMount(t *testing.T) {
@@ -61,7 +61,7 @@ func TestHealthStatus_String(t *testing.T) {
 
 func TestMount_UpdateState_SuccessfulCheck(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	result := &health.CheckResult{
 		Mount:     mount,
@@ -71,7 +71,7 @@ func TestMount_UpdateState_SuccessfulCheck(t *testing.T) {
 		Error:     nil,
 	}
 
-	transition := mount.UpdateState(result, debounceThreshold)
+	transition := mount.UpdateState(result, failureThreshold)
 
 	if mount.GetStatus() != health.StatusHealthy {
 		t.Errorf("expected status Healthy, got %v", mount.GetStatus())
@@ -89,7 +89,7 @@ func TestMount_UpdateState_SuccessfulCheck(t *testing.T) {
 
 func TestMount_UpdateState_FailedCheck_Degraded(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	// First failure - should go to Degraded
 	result := &health.CheckResult{
@@ -100,7 +100,7 @@ func TestMount_UpdateState_FailedCheck_Degraded(t *testing.T) {
 		Error:     errors.New("read timeout"),
 	}
 
-	transition := mount.UpdateState(result, debounceThreshold)
+	transition := mount.UpdateState(result, failureThreshold)
 
 	if mount.GetStatus() != health.StatusDegraded {
 		t.Errorf("expected status Degraded, got %v", mount.GetStatus())
@@ -115,10 +115,10 @@ func TestMount_UpdateState_FailedCheck_Degraded(t *testing.T) {
 
 func TestMount_UpdateState_FailedCheck_Unhealthy(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	// Simulate 3 consecutive failures
-	for i := 0; i < debounceThreshold; i++ {
+	for i := 0; i < failureThreshold; i++ {
 		result := &health.CheckResult{
 			Mount:     mount,
 			Timestamp: time.Now(),
@@ -126,23 +126,23 @@ func TestMount_UpdateState_FailedCheck_Unhealthy(t *testing.T) {
 			Duration:  100 * time.Millisecond,
 			Error:     errors.New("read timeout"),
 		}
-		mount.UpdateState(result, debounceThreshold)
+		mount.UpdateState(result, failureThreshold)
 	}
 
 	if mount.GetStatus() != health.StatusUnhealthy {
-		t.Errorf("expected status Unhealthy after %d failures, got %v", debounceThreshold, mount.GetStatus())
+		t.Errorf("expected status Unhealthy after %d failures, got %v", failureThreshold, mount.GetStatus())
 	}
-	if mount.GetFailureCount() != debounceThreshold {
-		t.Errorf("expected failure count %d, got %d", debounceThreshold, mount.GetFailureCount())
+	if mount.GetFailureCount() != failureThreshold {
+		t.Errorf("expected failure count %d, got %d", failureThreshold, mount.GetFailureCount())
 	}
 }
 
 func TestMount_UpdateState_RecoveryFromUnhealthy(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	// Put mount into unhealthy state
-	for i := 0; i < debounceThreshold; i++ {
+	for i := 0; i < failureThreshold; i++ {
 		result := &health.CheckResult{
 			Mount:     mount,
 			Timestamp: time.Now(),
@@ -150,7 +150,7 @@ func TestMount_UpdateState_RecoveryFromUnhealthy(t *testing.T) {
 			Duration:  100 * time.Millisecond,
 			Error:     errors.New("read timeout"),
 		}
-		mount.UpdateState(result, debounceThreshold)
+		mount.UpdateState(result, failureThreshold)
 	}
 
 	if mount.GetStatus() != health.StatusUnhealthy {
@@ -166,7 +166,7 @@ func TestMount_UpdateState_RecoveryFromUnhealthy(t *testing.T) {
 		Error:     nil,
 	}
 
-	transition := mount.UpdateState(successResult, debounceThreshold)
+	transition := mount.UpdateState(successResult, failureThreshold)
 
 	if mount.GetStatus() != health.StatusHealthy {
 		t.Errorf("expected status Healthy after recovery, got %v", mount.GetStatus())
@@ -184,7 +184,7 @@ func TestMount_UpdateState_RecoveryFromUnhealthy(t *testing.T) {
 
 func TestMount_UpdateState_NoTransitionOnSameState(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	// First successful check - transition to Healthy
 	result1 := &health.CheckResult{
@@ -193,7 +193,7 @@ func TestMount_UpdateState_NoTransitionOnSameState(t *testing.T) {
 		Success:   true,
 		Duration:  100 * time.Millisecond,
 	}
-	transition1 := mount.UpdateState(result1, debounceThreshold)
+	transition1 := mount.UpdateState(result1, failureThreshold)
 	if transition1 == nil {
 		t.Error("expected transition on first check")
 	}
@@ -205,7 +205,7 @@ func TestMount_UpdateState_NoTransitionOnSameState(t *testing.T) {
 		Success:   true,
 		Duration:  100 * time.Millisecond,
 	}
-	transition2 := mount.UpdateState(result2, debounceThreshold)
+	transition2 := mount.UpdateState(result2, failureThreshold)
 	if transition2 != nil {
 		t.Error("expected no transition when state unchanged")
 	}
@@ -213,7 +213,7 @@ func TestMount_UpdateState_NoTransitionOnSameState(t *testing.T) {
 
 func TestMount_Snapshot(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	// Set some state
 	result := &health.CheckResult{
@@ -223,7 +223,7 @@ func TestMount_Snapshot(t *testing.T) {
 		Duration:  100 * time.Millisecond,
 		Error:     errors.New("connection refused"),
 	}
-	mount.UpdateState(result, debounceThreshold)
+	mount.UpdateState(result, failureThreshold)
 
 	snapshot := mount.Snapshot()
 
@@ -243,7 +243,7 @@ func TestMount_Snapshot(t *testing.T) {
 
 func TestMount_TransientFailure_NoRestart(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	debounceThreshold := 3
+	failureThreshold := 3
 
 	// Start healthy
 	successResult := &health.CheckResult{
@@ -252,7 +252,7 @@ func TestMount_TransientFailure_NoRestart(t *testing.T) {
 		Success:   true,
 		Duration:  100 * time.Millisecond,
 	}
-	mount.UpdateState(successResult, debounceThreshold)
+	mount.UpdateState(successResult, failureThreshold)
 
 	// 2 failures (below threshold)
 	for i := 0; i < 2; i++ {
@@ -263,7 +263,7 @@ func TestMount_TransientFailure_NoRestart(t *testing.T) {
 			Duration:  100 * time.Millisecond,
 			Error:     errors.New("timeout"),
 		}
-		mount.UpdateState(failResult, debounceThreshold)
+		mount.UpdateState(failResult, failureThreshold)
 	}
 
 	// Should be Degraded, not Unhealthy
@@ -272,7 +272,7 @@ func TestMount_TransientFailure_NoRestart(t *testing.T) {
 	}
 
 	// Recovery
-	mount.UpdateState(successResult, debounceThreshold)
+	mount.UpdateState(successResult, failureThreshold)
 
 	if mount.GetStatus() != health.StatusHealthy {
 		t.Errorf("expected status Healthy after recovery, got %v", mount.GetStatus())

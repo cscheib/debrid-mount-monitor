@@ -68,9 +68,9 @@ As a system administrator, I want the application to validate my configuration f
 - What happens when the configuration file is empty (valid JSON but no content)? Application fails validation requiring at least one mount to be defined.
 - What happens when a mount path in the configuration does not exist on the filesystem? Application logs a warning but starts; the mount will show as unhealthy on first check.
 - How does the system handle configuration changes while running? Configuration is loaded at startup only; changes require restart (hot-reload is out of scope).
-- What happens when both a config file and environment variables define mount paths? Environment variables override the configuration file (maintaining the existing precedence: Defaults → Config File → Env Vars → CLI Flags).
+- ~~What happens when both a config file and environment variables define mount paths? Environment variables override the configuration file (maintaining the existing precedence: Defaults → Config File → Env Vars → CLI Flags).~~ *⚠️ [007]: Env vars removed; precedence is now Defaults → Config File → CLI Flags*
 - What happens when `./config.json` exists but `--config` points to a different file? The explicitly specified `--config` path takes precedence; the default `./config.json` is only used when no `--config` flag is provided.
-- What happens when neither `--config` is specified nor `./config.json` exists? Application proceeds using environment variables and CLI flags only (no error, backwards compatible).
+- ~~What happens when neither `--config` is specified nor `./config.json` exists? Application proceeds using environment variables and CLI flags only (no error, backwards compatible).~~ *⚠️ [007]: Env vars removed; config file or essential CLI flags required*
 
 ## Requirements *(mandatory)*
 
@@ -82,9 +82,9 @@ As a system administrator, I want the application to validate my configuration f
 - **FR-004**: System MUST validate configuration file structure and content at startup before beginning monitoring
 - **FR-005**: System MUST display clear, actionable error messages when configuration validation fails
 - **FR-006**: System MUST apply default values when optional mount settings are not specified (canary file defaults to global setting, failure threshold defaults to global setting)
-- **FR-007**: System MUST preserve existing configuration precedence: defaults are overridden by config file, which is overridden by environment variables, which is overridden by CLI flags
+- ~~**FR-007**: System MUST preserve existing configuration precedence: defaults are overridden by config file, which is overridden by environment variables, which is overridden by CLI flags~~ *⚠️ [007]: Simplified to Defaults → Config File → CLI Flags (env vars removed)*
 - **FR-008**: System MUST include mount name in health status responses and logs when a name is configured
-- **FR-009**: System MUST continue to function without a configuration file (backwards compatible with existing env var/CLI flag configuration)
+- ~~**FR-009**: System MUST continue to function without a configuration file (backwards compatible with existing env var/CLI flag configuration)~~ *⚠️ [007]: Config file is now required for mount configuration (env vars removed, most CLI flags removed)*
 - **FR-010**: System MUST log at info level on startup: the config file path used (or "default" / "none"), all configured mount paths, and their individual settings (canary file, failure threshold)
 
 ### Key Entities

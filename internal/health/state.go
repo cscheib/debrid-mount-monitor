@@ -15,9 +15,9 @@ const (
 	StatusUnknown HealthStatus = iota
 	// StatusHealthy indicates the mount is accessible.
 	StatusHealthy
-	// StatusDegraded indicates the mount has failed but is within debounce threshold.
+	// StatusDegraded indicates the mount has failed but is within failure threshold.
 	StatusDegraded
-	// StatusUnhealthy indicates the mount has failed past debounce threshold.
+	// StatusUnhealthy indicates the mount has failed past failure threshold.
 	StatusUnhealthy
 )
 
@@ -46,7 +46,7 @@ type Mount struct {
 	Status           HealthStatus // Current health status
 	LastCheck        time.Time    // Timestamp of last health check
 	LastError        error        // Last error encountered (nil if healthy)
-	FailureCount     int          // Consecutive failure count for debounce
+	FailureCount     int          // Consecutive failure count for threshold
 	mu               sync.RWMutex // Protects all fields
 }
 
@@ -125,7 +125,7 @@ type StateTransition struct {
 
 // UpdateState updates the mount's state based on a check result.
 // Returns a StateTransition if the state changed, nil otherwise.
-func (m *Mount) UpdateState(result *CheckResult, debounceThreshold int) *StateTransition {
+func (m *Mount) UpdateState(result *CheckResult, failureThreshold int) *StateTransition {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -142,7 +142,7 @@ func (m *Mount) UpdateState(result *CheckResult, debounceThreshold int) *StateTr
 		m.FailureCount++
 		m.LastError = result.Error
 
-		if m.FailureCount >= debounceThreshold {
+		if m.FailureCount >= failureThreshold {
 			m.Status = StatusUnhealthy
 		} else {
 			m.Status = StatusDegraded

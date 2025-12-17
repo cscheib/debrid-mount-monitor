@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chris/debrid-mount-monitor/internal/health"
+	"github.com/cscheib/debrid-mount-monitor/internal/health"
 )
 
 func TestChecker_HealthyMount(t *testing.T) {

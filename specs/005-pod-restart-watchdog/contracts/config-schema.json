@@ -21,9 +21,9 @@
       "description": "Maximum time for graceful shutdown",
       "default": "30s"
     },
-    "debounceThreshold": {
+    "failureThreshold": {
       "type": "integer",
-      "description": "Default consecutive failures before marking mount unhealthy",
+      "description": "Default consecutive failures before marking mount unhealthy. [007]: Renamed from debounceThreshold",
       "default": 3,
       "minimum": 1
     },

@@ -60,7 +60,7 @@ Create `config.json` in your working directory:
 ```json
 {
   "checkInterval": "30s",
-  "debounceThreshold": 3,
+  "failureThreshold": 3,  // ⚠️ [007]: Renamed from "debounceThreshold"
   "mounts": [
     {
       "name": "fast-storage",
@@ -85,7 +85,7 @@ Create `config.json` in your working directory:
   "checkInterval": "30s",
   "readTimeout": "5s",
   "shutdownTimeout": "30s",
-  "debounceThreshold": 3,
+  "failureThreshold": 3,  // ⚠️ [007]: Renamed from "debounceThreshold"
   "httpPort": 8080,
   "logLevel": "info",
   "logFormat": "json",
