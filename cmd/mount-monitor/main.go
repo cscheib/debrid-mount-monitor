@@ -132,16 +132,24 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer shutdownCancel()
 
+	// Shutdown HTTP server first - this stops accepting new connections immediately
+	// but allows in-flight requests to complete. Run in goroutine so we can
+	// cancel the monitor in parallel.
+	httpShutdownDone := make(chan error, 1)
+	go func() {
+		httpShutdownDone <- srv.Shutdown(shutdownCtx)
+	}()
+
 	// Cancel monitor context to stop health checks
 	cancel()
 
-	// Shutdown HTTP server
-	if err := srv.Shutdown(shutdownCtx); err != nil {
+	// Wait for monitor to finish current checks
+	mon.Wait()
+
+	// Wait for HTTP server shutdown to complete
+	if err := <-httpShutdownDone; err != nil {
 		logger.Error("http server shutdown error", "error", err)
 	}
-
-	// Wait for monitor to finish
-	mon.Wait()
 
 	logger.Info("shutdown complete")
 	os.Exit(0)
