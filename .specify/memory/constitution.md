@@ -1,18 +1,23 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.1.0 → 1.1.1 (PATCH - terminology and configuration clarifications)
+Version change: 1.1.1 → 1.2.0 (MINOR - added Approved Dependencies subsection)
 
 Modified sections:
-- VI. Fail-Safe Orchestration: "debounce/threshold" → "failure threshold" (terminology alignment)
-- Runtime Behavior > Configuration: Updated to reflect JSON config + CLI flags as primary methods (env vars removed for user configuration)
+- I. Minimal Dependencies: Added "Approved Dependencies" subsection with:
+  - Pre-approved dependency table (starting with spf13/pflag)
+  - Dependency Approval Criteria (5 requirements)
+  - Process for adding new dependencies
 
-Added sections: None
+Added sections:
+- Approved Dependencies table
+- Dependency Approval Criteria
+- Adding New Dependencies process
 
 Removed sections: None
 
 Templates requiring updates:
-- .specify/templates/plan-template.md ✅ (compatible - no changes required)
+- .specify/templates/plan-template.md ✅ (compatible - references generic Constitution Check)
 - .specify/templates/spec-template.md ✅ (compatible - no changes required)
 - .specify/templates/tasks-template.md ✅ (compatible - no changes required)
 
@@ -46,6 +51,27 @@ All code MUST minimize external dependencies. Every dependency added MUST be jus
 - Standard library solutions MUST be preferred over third-party packages
 - Any external dependency MUST be documented with justification
 - Dependencies MUST NOT pull in large transitive dependency trees
+
+**Approved Dependencies**:
+
+The following external dependencies have been reviewed and approved for use:
+
+| Package | Purpose | Justification |
+|---------|---------|---------------|
+| `github.com/spf13/pflag` | POSIX-compliant CLI flag parsing | stdlib `flag` package doesn't enforce single-dash for short flags, double-dash for long flags. pflag is a drop-in replacement with zero transitive dependencies. |
+
+**Dependency Approval Criteria**:
+- MUST solve a problem that stdlib cannot reasonably address
+- MUST have zero or minimal transitive dependencies
+- MUST be actively maintained and widely adopted
+- MUST NOT increase binary size significantly (< 1MB impact)
+- MUST NOT introduce CGO requirements (breaks static linking)
+
+**Adding New Dependencies**:
+1. Document the problem and why stdlib is insufficient
+2. Evaluate transitive dependency tree (`go mod graph`)
+3. Add to Approved Dependencies table with justification
+4. Update constitution version (MINOR bump)
 
 ### II. Single Static Binary
 
@@ -162,4 +188,4 @@ This constitution defines the non-negotiable architectural constraints for the d
 - Violations MUST be justified in the Complexity Tracking section of the implementation plan
 - Unjustified violations are grounds for PR rejection
 
-**Version**: 1.1.1 | **Ratified**: 2025-12-14 | **Last Amended**: 2025-12-16
+**Version**: 1.2.0 | **Ratified**: 2025-12-14 | **Last Amended**: 2025-12-16
