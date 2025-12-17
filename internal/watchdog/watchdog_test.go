@@ -1,7 +1,9 @@
-package unit
+package watchdog_test
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -10,6 +12,11 @@ import (
 	"github.com/cscheib/debrid-mount-monitor/internal/watchdog"
 	"github.com/matryer/is"
 )
+
+// testLogger returns a silent logger for testing.
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
 
 // MockK8sClient implements K8sClientInterface for testing.
 // It allows configuring responses and tracking calls for assertions.

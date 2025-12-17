@@ -1,4 +1,4 @@
-package unit
+package health_test
 
 import (
 	"context"
