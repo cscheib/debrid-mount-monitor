@@ -10,9 +10,12 @@ import (
 
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
 	"github.com/cscheib/debrid-mount-monitor/internal/monitor"
+	"github.com/matryer/is"
 )
 
 func TestMonitor_StartsAndStops(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	canaryPath := filepath.Join(tmpDir, ".health-check")
 	if err := os.WriteFile(canaryPath, []byte("ok"), 0644); err != nil {
@@ -36,12 +39,12 @@ func TestMonitor_StartsAndStops(t *testing.T) {
 	mon.Wait()
 
 	// Verify the mount was checked and is healthy
-	if mount.GetStatus() != health.StatusHealthy {
-		t.Errorf("expected mount status Healthy after check, got %v", mount.GetStatus())
-	}
+	is.Equal(mount.GetStatus(), health.StatusHealthy) // mount should be healthy after check
 }
 
 func TestMonitor_DetectsFailure(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	// Don't create canary file - mount should be unhealthy
 
@@ -62,12 +65,12 @@ func TestMonitor_DetectsFailure(t *testing.T) {
 	mon.Wait()
 
 	// Verify the mount transitioned to unhealthy
-	if mount.GetStatus() != health.StatusUnhealthy {
-		t.Errorf("expected mount status Unhealthy after %d failures, got %v", failureThreshold, mount.GetStatus())
-	}
+	is.Equal(mount.GetStatus(), health.StatusUnhealthy) // mount should be unhealthy after failures
 }
 
 func TestMonitor_DetectsRecovery(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	canaryPath := filepath.Join(tmpDir, ".health-check")
 
@@ -89,9 +92,7 @@ func TestMonitor_DetectsRecovery(t *testing.T) {
 
 	// Poll until mount becomes unhealthy (failure threshold exceeded)
 	// Use long timeout for CI with race detector
-	if !pollForStatus(t, mount, health.StatusUnhealthy, 10*time.Second, checkInterval) {
-		t.Fatalf("mount did not become unhealthy, got %v", mount.GetStatus())
-	}
+	is.True(pollForStatus(t, mount, health.StatusUnhealthy, 10*time.Second, checkInterval)) // mount should become unhealthy
 
 	// Now create the canary file to simulate recovery
 	if err := os.WriteFile(canaryPath, []byte("ok"), 0644); err != nil {
@@ -99,9 +100,7 @@ func TestMonitor_DetectsRecovery(t *testing.T) {
 	}
 
 	// Poll for recovery with timeout - needs to be long enough for monitor to detect
-	if !pollForStatus(t, mount, health.StatusHealthy, 10*time.Second, checkInterval) {
-		t.Errorf("expected mount status Healthy after recovery, got %v", mount.GetStatus())
-	}
+	is.True(pollForStatus(t, mount, health.StatusHealthy, 10*time.Second, checkInterval)) // mount should recover
 }
 
 // pollForStatus polls for a specific mount status with timeout.
@@ -119,6 +118,8 @@ func pollForStatus(t *testing.T, mount *health.Mount, expected health.HealthStat
 }
 
 func TestMonitor_MultipleMount(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
 
@@ -150,13 +151,9 @@ func TestMonitor_MultipleMount(t *testing.T) {
 	mon.Wait()
 
 	// Mount1 should be healthy
-	if mount1.GetStatus() != health.StatusHealthy {
-		t.Errorf("expected mount1 status Healthy, got %v", mount1.GetStatus())
-	}
+	is.Equal(mount1.GetStatus(), health.StatusHealthy) // mount1 should be healthy
 
 	// Mount2 should be unhealthy (at least degraded due to no canary)
 	status2 := mount2.GetStatus()
-	if status2 != health.StatusUnhealthy && status2 != health.StatusDegraded {
-		t.Errorf("expected mount2 status Unhealthy or Degraded, got %v", status2)
-	}
+	is.True(status2 == health.StatusUnhealthy || status2 == health.StatusDegraded) // mount2 should be unhealthy or degraded
 }

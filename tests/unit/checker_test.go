@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
+	"github.com/matryer/is"
 )
 
 func TestChecker_HealthyMount(t *testing.T) {
+	is := is.New(t)
+
 	// Create temporary directory with canary file
 	tmpDir := t.TempDir()
 	canaryPath := filepath.Join(tmpDir, ".health-check")
@@ -23,18 +26,14 @@ func TestChecker_HealthyMount(t *testing.T) {
 
 	result := checker.Check(context.Background(), mount)
 
-	if !result.Success {
-		t.Errorf("expected check to succeed, got error: %v", result.Error)
-	}
-	if result.Error != nil {
-		t.Errorf("expected no error, got: %v", result.Error)
-	}
-	if result.Duration <= 0 {
-		t.Error("expected positive duration")
-	}
+	is.True(result.Success)      // check should succeed
+	is.NoErr(result.Error)       // no error expected
+	is.True(result.Duration > 0) // duration should be positive
 }
 
 func TestChecker_MissingCanaryFile(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	// Don't create canary file
 
@@ -43,29 +42,25 @@ func TestChecker_MissingCanaryFile(t *testing.T) {
 
 	result := checker.Check(context.Background(), mount)
 
-	if result.Success {
-		t.Error("expected check to fail for missing canary file")
-	}
-	if result.Error == nil {
-		t.Error("expected error for missing canary file")
-	}
+	is.True(!result.Success)     // check should fail for missing canary file
+	is.True(result.Error != nil) // error expected for missing canary file
 }
 
 func TestChecker_MissingMountPath(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/nonexistent/path/that/does/not/exist", ".health-check", 3)
 	checker := health.NewChecker(5 * time.Second)
 
 	result := checker.Check(context.Background(), mount)
 
-	if result.Success {
-		t.Error("expected check to fail for missing mount path")
-	}
-	if result.Error == nil {
-		t.Error("expected error for missing mount path")
-	}
+	is.True(!result.Success)     // check should fail for missing mount path
+	is.True(result.Error != nil) // error expected for missing mount path
 }
 
 func TestChecker_Timeout(t *testing.T) {
+	is := is.New(t)
+
 	// This test verifies the timeout context is respected
 	// We can't easily simulate a hanging filesystem, but we can test the context
 
@@ -85,12 +80,12 @@ func TestChecker_Timeout(t *testing.T) {
 	result := checker.Check(ctx, mount)
 
 	// The check should fail due to cancelled context
-	if result.Success {
-		t.Error("expected check to fail with cancelled context")
-	}
+	is.True(!result.Success) // check should fail with cancelled context
 }
 
 func TestChecker_PermissionDenied(t *testing.T) {
+	is := is.New(t)
+
 	if os.Getuid() == 0 {
 		t.Skip("skipping permission test when running as root")
 	}
@@ -107,15 +102,13 @@ func TestChecker_PermissionDenied(t *testing.T) {
 
 	result := checker.Check(context.Background(), mount)
 
-	if result.Success {
-		t.Error("expected check to fail due to permission denied")
-	}
-	if result.Error == nil {
-		t.Error("expected permission error")
-	}
+	is.True(!result.Success)     // check should fail due to permission denied
+	is.True(result.Error != nil) // permission error expected
 }
 
 func TestChecker_EmptyCanaryFile(t *testing.T) {
+	is := is.New(t)
+
 	// Empty canary file should still be considered healthy
 	tmpDir := t.TempDir()
 	canaryPath := filepath.Join(tmpDir, ".health-check")
@@ -128,7 +121,5 @@ func TestChecker_EmptyCanaryFile(t *testing.T) {
 
 	result := checker.Check(context.Background(), mount)
 
-	if !result.Success {
-		t.Errorf("expected empty canary file to be healthy, got error: %v", result.Error)
-	}
+	is.True(result.Success) // empty canary file should be healthy
 }

@@ -43,4 +43,6 @@ Go 1.21+ (required for log/slog structured logging): Follow standard conventions
 This project uses minimal external dependencies:
 
 - **github.com/spf13/pflag** - Drop-in replacement for Go's `flag` package that enforces POSIX/GNU flag conventions (single dash for short flags like `-c`, double dash for long flags like `--config`)
+- **github.com/matryer/is** - Minimalist testing assertions library (zero transitive dependencies, test-only)
+- **github.com/hashicorp/go-multierror** - Multi-error collection for config validation (preserves individual errors)
 <!-- MANUAL ADDITIONS END -->

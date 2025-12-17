@@ -2,11 +2,10 @@
 package config
 
 import (
-	"errors"
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	flag "github.com/spf13/pflag"
 )
 
@@ -120,78 +119,74 @@ func Load() (*Config, error) {
 
 // Validate checks that the configuration is valid.
 func (c *Config) Validate() error {
-	var errs []string
+	var result *multierror.Error
 
 	// Check for mounts - either via Mounts or legacy MountPaths
 	if len(c.Mounts) == 0 && len(c.MountPaths) == 0 {
-		errs = append(errs, "at least one mount path is required")
+		result = multierror.Append(result, fmt.Errorf("at least one mount path is required"))
 	}
 
 	// Validate individual mount configs
 	for i, m := range c.Mounts {
 		if m.Path == "" {
 			if m.Name != "" {
-				errs = append(errs, fmt.Sprintf("mount[%d] %q: path is required", i, m.Name))
+				result = multierror.Append(result, fmt.Errorf("mount[%d] %q: path is required", i, m.Name))
 			} else {
-				errs = append(errs, fmt.Sprintf("mount[%d]: path is required", i))
+				result = multierror.Append(result, fmt.Errorf("mount[%d]: path is required", i))
 			}
 		}
 		if m.FailureThreshold < 0 {
 			if m.Name != "" {
-				errs = append(errs, fmt.Sprintf("mount[%d] %q: failureThreshold must be >= 0", i, m.Name))
+				result = multierror.Append(result, fmt.Errorf("mount[%d] %q: failureThreshold must be >= 0", i, m.Name))
 			} else {
-				errs = append(errs, fmt.Sprintf("mount[%d]: failureThreshold must be >= 0", i))
+				result = multierror.Append(result, fmt.Errorf("mount[%d]: failureThreshold must be >= 0", i))
 			}
 		}
 	}
 
 	if c.CheckInterval < time.Second {
-		errs = append(errs, "check interval must be >= 1 second")
+		result = multierror.Append(result, fmt.Errorf("check interval must be >= 1 second"))
 	}
 
 	if c.ReadTimeout < 100*time.Millisecond {
-		errs = append(errs, "read timeout must be >= 100 milliseconds")
+		result = multierror.Append(result, fmt.Errorf("read timeout must be >= 100 milliseconds"))
 	}
 
 	if c.ReadTimeout >= c.CheckInterval {
-		errs = append(errs, "read timeout must be less than check interval (otherwise health checks would overlap or never complete before the next check)")
+		result = multierror.Append(result, fmt.Errorf("read timeout must be less than check interval (otherwise health checks would overlap or never complete before the next check)"))
 	}
 
 	if c.FailureThreshold < 1 {
-		errs = append(errs, "failure threshold must be >= 1")
+		result = multierror.Append(result, fmt.Errorf("failure threshold must be >= 1"))
 	}
 
 	if c.HTTPPort < 1 || c.HTTPPort > 65535 {
-		errs = append(errs, "HTTP port must be between 1 and 65535")
+		result = multierror.Append(result, fmt.Errorf("HTTP port must be between 1 and 65535"))
 	}
 
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 	if !validLogLevels[c.LogLevel] {
-		errs = append(errs, fmt.Sprintf("log level must be one of: debug, info, warn, error (got %q)", c.LogLevel))
+		result = multierror.Append(result, fmt.Errorf("log level must be one of: debug, info, warn, error (got %q)", c.LogLevel))
 	}
 
 	validLogFormats := map[string]bool{"json": true, "text": true}
 	if !validLogFormats[c.LogFormat] {
-		errs = append(errs, fmt.Sprintf("log format must be one of: json, text (got %q)", c.LogFormat))
+		result = multierror.Append(result, fmt.Errorf("log format must be one of: json, text (got %q)", c.LogFormat))
 	}
 
 	// Validate watchdog configuration
 	if c.Watchdog.RestartDelay < 0 {
-		errs = append(errs, "watchdog restart delay must be >= 0")
+		result = multierror.Append(result, fmt.Errorf("watchdog restart delay must be >= 0"))
 	}
 	if c.Watchdog.MaxRetries < 1 {
-		errs = append(errs, "watchdog max retries must be >= 1")
+		result = multierror.Append(result, fmt.Errorf("watchdog max retries must be >= 1"))
 	}
 	if c.Watchdog.RetryBackoffInitial <= 0 {
-		errs = append(errs, "watchdog retry backoff initial must be > 0")
+		result = multierror.Append(result, fmt.Errorf("watchdog retry backoff initial must be > 0"))
 	}
 	if c.Watchdog.RetryBackoffMax < c.Watchdog.RetryBackoffInitial {
-		errs = append(errs, "watchdog retry backoff max must be >= retry backoff initial")
+		result = multierror.Append(result, fmt.Errorf("watchdog retry backoff max must be >= retry backoff initial"))
 	}
 
-	if len(errs) > 0 {
-		return errors.New("configuration validation failed: " + strings.Join(errs, "; "))
-	}
-
-	return nil
+	return result.ErrorOrNil()
 }
