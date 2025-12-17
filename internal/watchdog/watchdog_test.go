@@ -550,22 +550,6 @@ func TestWatchdogStatus_String(t *testing.T) {
 	}
 }
 
-// TestWatchdogConfig_Validation tests configuration validation.
-func TestWatchdogConfig_Validation(t *testing.T) {
-	is := is.New(t)
-
-	cfg := watchdog.Config{
-		Enabled:             true,
-		RestartDelay:        30 * time.Second,
-		MaxRetries:          5,
-		RetryBackoffInitial: 200 * time.Millisecond,
-		RetryBackoffMax:     30 * time.Second,
-	}
-
-	is.Equal(cfg.RestartDelay, 30*time.Second) // RestartDelay
-	is.Equal(cfg.MaxRetries, 5)                // MaxRetries
-}
-
 // TestWatchdog_ExitFuncOverride tests that the exit function can be overridden.
 func TestWatchdog_ExitFuncOverride(t *testing.T) {
 	is := is.New(t)
@@ -589,46 +573,6 @@ func TestWatchdog_ExitFuncOverride(t *testing.T) {
 
 	is.True(!exitCalled) // exit should not have been called yet
 	_ = exitCode
-}
-
-// TestRestartEvent_Fields tests the RestartEvent struct fields.
-func TestRestartEvent_Fields(t *testing.T) {
-	is := is.New(t)
-
-	event := watchdog.RestartEvent{
-		Timestamp:         time.Now(),
-		PodName:           "test-pod",
-		Namespace:         "test-ns",
-		MountPath:         "/mnt/test",
-		Reason:            "Mount unhealthy",
-		FailureCount:      5,
-		UnhealthyDuration: 30 * time.Second,
-	}
-
-	is.Equal(event.PodName, "test-pod")               // PodName
-	is.Equal(event.Namespace, "test-ns")              // Namespace
-	is.Equal(event.MountPath, "/mnt/test")            // MountPath
-	is.Equal(event.FailureCount, 5)                   // FailureCount
-	is.Equal(event.UnhealthyDuration, 30*time.Second) // UnhealthyDuration
-}
-
-// TestWatchdogState_Fields tests the WatchdogState struct fields.
-func TestWatchdogState_Fields(t *testing.T) {
-	is := is.New(t)
-
-	now := time.Now()
-	state := watchdog.WatchdogState{
-		State:          watchdog.WatchdogArmed,
-		UnhealthySince: &now,
-		PendingMount:   "/mnt/test",
-		RetryCount:     2,
-		LastError:      nil,
-	}
-
-	is.Equal(state.State, watchdog.WatchdogArmed) // State
-	is.True(state.UnhealthySince != nil)          // UnhealthySince should be set
-	is.Equal(state.PendingMount, "/mnt/test")     // PendingMount
-	is.Equal(state.RetryCount, 2)                 // RetryCount
 }
 
 // TestWatchdog_ShutdownAbortsRestart tests that pending restart is aborted when context is cancelled.

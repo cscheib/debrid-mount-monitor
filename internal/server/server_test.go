@@ -418,6 +418,50 @@ func TestEndpoints_MethodNotAllowed(t *testing.T) {
 	}
 }
 
+// TestVersionEndpoint tests the /version endpoint returns correct version info.
+func TestVersionEndpoint(t *testing.T) {
+	is := is.New(t)
+
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
+	srv := server.New([]*health.Mount{mount}, 0, "1.2.3", testLogger())
+	handler := createServerHandler(srv)
+
+	req := httptest.NewRequest(http.MethodGet, "/version", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	is.Equal(rec.Code, http.StatusOK) // status should be 200
+
+	var response server.VersionResponse
+	is.NoErr(json.Unmarshal(rec.Body.Bytes(), &response)) // should parse response
+
+	is.Equal(response.Version, "1.2.3") // version should match
+}
+
+// TestVersionEndpoint_MethodNotAllowed tests that /version rejects non-GET methods.
+func TestVersionEndpoint_MethodNotAllowed(t *testing.T) {
+	is := is.New(t)
+
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
+	handler := createServerHandler(srv)
+
+	methods := []string{http.MethodPost, http.MethodPut, http.MethodDelete}
+	for _, method := range methods {
+		t.Run(method, func(t *testing.T) {
+			is := is.New(t)
+
+			req := httptest.NewRequest(method, "/version", nil)
+			rec := httptest.NewRecorder()
+
+			handler.ServeHTTP(rec, req)
+
+			is.Equal(rec.Code, http.StatusMethodNotAllowed) // should return 405
+		})
+	}
+}
+
 // createServerHandler creates an HTTP handler from the real server for testing.
 // Uses the server's Handler() method to get the internal mux for direct testing.
 func createServerHandler(srv *server.Server) http.Handler {

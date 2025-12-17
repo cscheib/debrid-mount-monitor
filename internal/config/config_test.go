@@ -154,6 +154,17 @@ func TestConfigValidation_InvalidLogFormat(t *testing.T) {
 	is.True(err != nil) // invalid log format should error
 }
 
+func TestConfigValidation_ShutdownTimeoutTooShort(t *testing.T) {
+	is := is.New(t)
+
+	cfg := config.DefaultConfig()
+	cfg.Mounts = []config.MountConfig{testMount()}
+	cfg.ShutdownTimeout = 500 * time.Millisecond
+
+	err := cfg.Validate()
+	is.True(err != nil) // shutdown timeout < 1s should error
+}
+
 func TestConfigValidation_AllLogLevels(t *testing.T) {
 	levels := []string{"debug", "info", "warn", "error"}
 	for _, level := range levels {

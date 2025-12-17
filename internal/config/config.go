@@ -154,6 +154,10 @@ func (c *Config) Validate() error {
 		result = multierror.Append(result, fmt.Errorf("read timeout must be less than check interval (otherwise health checks would overlap or never complete before the next check)"))
 	}
 
+	if c.ShutdownTimeout < time.Second {
+		result = multierror.Append(result, fmt.Errorf("shutdown timeout must be >= 1 second"))
+	}
+
 	if c.FailureThreshold < 1 {
 		result = multierror.Append(result, fmt.Errorf("failure threshold must be >= 1"))
 	}
