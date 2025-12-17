@@ -38,4 +38,9 @@ Go 1.21+ (required for log/slog structured logging): Follow standard conventions
 
 
 <!-- MANUAL ADDITIONS START -->
+## External Dependencies
+
+This project uses minimal external dependencies:
+
+- **github.com/spf13/pflag** - Drop-in replacement for Go's `flag` package that enforces POSIX/GNU flag conventions (single dash for short flags like `-c`, double dash for long flags like `--config`)
 <!-- MANUAL ADDITIONS END -->

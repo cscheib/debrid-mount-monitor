@@ -3,10 +3,11 @@ package config
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"strings"
 	"time"
+
+	flag "github.com/spf13/pflag"
 )
 
 // MountConfig holds per-mount configuration settings.
@@ -86,8 +87,7 @@ func Load() (*Config, error) {
 
 	// Define flags
 	// Note: Most configuration is done via JSON config file. Only essential runtime flags are kept.
-	configFile := flag.String("config", "", "Path to JSON configuration file")
-	flag.StringVar(configFile, "c", "", "Path to JSON configuration file (shorthand)")
+	configFile := flag.StringP("config", "c", "", "Path to JSON configuration file")
 	httpPort := flag.Int("http-port", 0, "Port for health endpoints")
 	logLevel := flag.String("log-level", "", "Log level: debug, info, warn, error")
 	logFormat := flag.String("log-format", "", "Log format: json, text")
