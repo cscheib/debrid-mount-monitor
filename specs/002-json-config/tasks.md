@@ -24,9 +24,9 @@
 
 **Purpose**: Foundation for JSON config file support
 
-- [ ] T001 Add `--config` / `-c` CLI flag definition in internal/config/config.go
-- [ ] T002 [P] Create internal/config/file.go skeleton with FileConfig struct (JSON-specific, references MountConfig from config.go)
-- [ ] T003 [P] Add Duration type with custom UnmarshalJSON in internal/config/file.go
+- [x] T001 Add `--config` / `-c` CLI flag definition in internal/config/config.go
+- [x] T002 [P] Create internal/config/file.go skeleton with FileConfig struct (JSON-specific, references MountConfig from config.go)
+- [x] T003 [P] Add Duration type with custom UnmarshalJSON in internal/config/file.go
 
 ---
 
@@ -36,12 +36,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Add MountConfig struct to internal/config/config.go with Name, Path, CanaryFile, FailureThreshold fields (canonical location, used by file.go and main.go)
-- [ ] T005 Add ConfigFile field to Config struct in internal/config/config.go
-- [ ] T006 Add Mounts []MountConfig field to Config struct in internal/config/config.go
-- [ ] T007 Add Name and FailureThreshold fields to Mount struct in internal/health/state.go
-- [ ] T008 Update NewMount constructor signature in internal/health/state.go to accept (name, path, canaryFile string, failureThreshold int)
-- [ ] T009 Update all existing NewMount call sites to use new signature (cmd/mount-monitor/main.go, tests)
+- [x] T004 Add MountConfig struct to internal/config/config.go with Name, Path, CanaryFile, FailureThreshold fields (canonical location, used by file.go and main.go)
+- [x] T005 Add ConfigFile field to Config struct in internal/config/config.go
+- [x] T006 Add Mounts []MountConfig field to Config struct in internal/config/config.go
+- [x] T007 Add Name and FailureThreshold fields to Mount struct in internal/health/state.go
+- [x] T008 Update NewMount constructor signature in internal/health/state.go to accept (name, path, canaryFile string, failureThreshold int)
+- [x] T009 Update all existing NewMount call sites to use new signature (cmd/mount-monitor/main.go, tests)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -55,19 +55,19 @@
 
 ### Tests for User Story 1
 
-- [ ] T010 [P] [US1] Test JSON file parsing with valid config in tests/unit/config_file_test.go
-- [ ] T011 [P] [US1] Test `--config` flag loads specified file in tests/unit/config_file_test.go
-- [ ] T012 [P] [US1] Test `./config.json` default location discovery in tests/unit/config_file_test.go
-- [ ] T013 [P] [US1] Test backwards compatibility: no config file uses env vars in tests/unit/config_test.go
+- [x] T010 [P] [US1] Test JSON file parsing with valid config in tests/unit/config_file_test.go
+- [x] T011 [P] [US1] Test `--config` flag loads specified file in tests/unit/config_file_test.go
+- [x] T012 [P] [US1] Test `./config.json` default location discovery in tests/unit/config_file_test.go
+- [x] T013 [P] [US1] Test backwards compatibility: no config file uses env vars in tests/unit/config_test.go
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Implement LoadFromFile function in internal/config/file.go (read file, parse JSON)
-- [ ] T015 [US1] Implement config file discovery logic in internal/config/file.go (--config flag → ./config.json → none)
-- [ ] T016 [US1] Implement FileConfig to Config mapping in internal/config/file.go
-- [ ] T017 [US1] Update Load() in internal/config/config.go to call LoadFromFile after defaults, before env vars
-- [ ] T018 [US1] Handle "file not found" error when --config explicitly specified in internal/config/file.go
-- [ ] T019 [US1] Silently skip when ./config.json doesn't exist (backwards compatible) in internal/config/file.go
+- [x] T014 [US1] Implement LoadFromFile function in internal/config/file.go (read file, parse JSON)
+- [x] T015 [US1] Implement config file discovery logic in internal/config/file.go (--config flag → ./config.json → none)
+- [x] T016 [US1] Implement FileConfig to Config mapping in internal/config/file.go
+- [x] T017 [US1] Update Load() in internal/config/config.go to call LoadFromFile after defaults, before env vars
+- [x] T018 [US1] Handle "file not found" error when --config explicitly specified in internal/config/file.go
+- [x] T019 [US1] Silently skip when ./config.json doesn't exist (backwards compatible) in internal/config/file.go
 
 **Checkpoint**: User Story 1 complete - can load config from JSON file, falls back to env vars when absent
 
@@ -81,19 +81,19 @@
 
 ### Tests for User Story 2
 
-- [ ] T020 [P] [US2] Test per-mount canary file override in tests/unit/config_file_test.go
-- [ ] T021 [P] [US2] Test per-mount failureThreshold override in tests/unit/config_file_test.go
-- [ ] T022 [P] [US2] Test default inheritance when per-mount values not specified in tests/unit/config_file_test.go
-- [ ] T023 [P] [US2] Test Mount.Name field in health status in tests/unit/state_test.go
+- [x] T020 [P] [US2] Test per-mount canary file override in tests/unit/config_file_test.go
+- [x] T021 [P] [US2] Test per-mount failureThreshold override in tests/unit/config_file_test.go
+- [x] T022 [P] [US2] Test default inheritance when per-mount values not specified in tests/unit/config_file_test.go
+- [x] T023 [P] [US2] Test Mount.Name field in health status in tests/unit/state_test.go
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Implement per-mount default inheritance in internal/config/file.go (mount inherits global canaryFile/threshold if not specified)
-- [ ] T025 [US2] Update mount creation loop in cmd/mount-monitor/main.go to use MountConfig values
-- [ ] T026 [US2] Pass per-mount failureThreshold to health.NewMount in cmd/mount-monitor/main.go
-- [ ] T026a [US2] Update monitor.go checkAll() to pass mount.FailureThreshold to UpdateState instead of global threshold
-- [ ] T027 [US2] Verify Mount.UpdateState receives per-mount FailureThreshold via monitor.checkMount() parameter in internal/health/state.go
-- [ ] T028 [US2] Include mount Name in MountStatusResponse in internal/server/server.go
+- [x] T024 [US2] Implement per-mount default inheritance in internal/config/file.go (mount inherits global canaryFile/threshold if not specified)
+- [x] T025 [US2] Update mount creation loop in cmd/mount-monitor/main.go to use MountConfig values
+- [x] T026 [US2] Pass per-mount failureThreshold to health.NewMount in cmd/mount-monitor/main.go
+- [x] T026a [US2] Update monitor.go checkAll() to pass mount.FailureThreshold to UpdateState instead of global threshold
+- [x] T027 [US2] Verify Mount.UpdateState receives per-mount FailureThreshold via monitor.checkMount() parameter in internal/health/state.go
+- [x] T028 [US2] Include mount Name in MountStatusResponse in internal/server/server.go
   - Note: FR-008 test coverage provided by TestMountNameInStatusResponse in tests/unit/config_file_test.go
 
 **Checkpoint**: User Story 2 complete - each mount can have independent canary file and failure threshold
@@ -108,19 +108,19 @@
 
 ### Tests for User Story 3
 
-- [ ] T029 [P] [US3] Test invalid JSON syntax error message in tests/unit/config_file_test.go
-- [ ] T030 [P] [US3] Test missing required "path" field error in tests/unit/config_file_test.go
-- [ ] T031 [P] [US3] Test invalid failureThreshold (zero/negative) error in tests/unit/config_file_test.go
-- [ ] T032 [P] [US3] Test empty mounts array triggers validation error (via existing Config.Validate()) in tests/unit/config_file_test.go
-- [ ] T033 [P] [US3] Test verbose startup logging output in tests/unit/config_test.go
+- [x] T029 [P] [US3] Test invalid JSON syntax error message in tests/unit/config_file_test.go
+- [x] T030 [P] [US3] Test missing required "path" field error in tests/unit/config_file_test.go
+- [x] T031 [P] [US3] Test invalid failureThreshold (zero/negative) error in tests/unit/config_file_test.go
+- [x] T032 [P] [US3] Test empty mounts array triggers validation error (via existing Config.Validate()) in tests/unit/config_file_test.go
+- [x] T033 [P] [US3] Test verbose startup logging output in tests/unit/config_test.go
 
 ### Implementation for User Story 3
 
-- [ ] T034 [US3] Implement ValidateFileConfig function in internal/config/file.go
-- [ ] T035 [US3] Add mount-level validation: path required, failureThreshold >= 0 (0 = use default, negative = invalid) in internal/config/file.go
-- [ ] T036 [US3] Format error messages with mount index and name (e.g., "mount[2] 'backup': ...") in internal/config/file.go
-- [ ] T037 [US3] Add verbose config logging at startup in cmd/mount-monitor/main.go (config source, mount count, settings)
-- [ ] T038 [US3] Log each mount's configuration at info level in cmd/mount-monitor/main.go (name, path, canaryFile, threshold)
+- [x] T034 [US3] Implement ValidateFileConfig function in internal/config/file.go
+- [x] T035 [US3] Add mount-level validation: path required, failureThreshold >= 0 (0 = use default, negative = invalid) in internal/config/file.go
+- [x] T036 [US3] Format error messages with mount index and name (e.g., "mount[2] 'backup': ...") in internal/config/file.go
+- [x] T037 [US3] Add verbose config logging at startup in cmd/mount-monitor/main.go (config source, mount count, settings)
+- [x] T038 [US3] Log each mount's configuration at info level in cmd/mount-monitor/main.go (name, path, canaryFile, threshold)
 
 **Checkpoint**: User Story 3 complete - all validation and logging requirements met
 
@@ -130,11 +130,11 @@
 
 **Purpose**: Final integration and documentation
 
-- [ ] T039 [P] Update README.md with JSON config file usage examples
-- [ ] T040 [P] Add example config.json to repository root or examples/ directory
-- [ ] T041 Run all existing tests to verify backwards compatibility
-- [ ] T042 Run quickstart.md validation scenarios manually
-- [ ] T043 Verify constitution compliance (no external dependencies added)
+- [x] T039 [P] Update README.md with JSON config file usage examples
+- [x] T040 [P] Add example config.json to repository root or examples/ directory
+- [x] T041 Run all existing tests to verify backwards compatibility
+- [x] T042 Run quickstart.md validation scenarios manually
+- [x] T043 Verify constitution compliance (no external dependencies added)
 
 ---
 
