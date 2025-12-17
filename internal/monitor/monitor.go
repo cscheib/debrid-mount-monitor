@@ -4,10 +4,17 @@ package monitor
 import (
 	"context"
 	"log/slog"
+	"math/rand"
 	"sync"
 	"time"
 
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
+)
+
+const (
+	// jitterFactor is the maximum percentage of jitter to apply to intervals.
+	// A value of 0.1 means ±10% jitter.
+	jitterFactor = 0.1
 )
 
 // WatchdogNotifier is an interface for notifying the watchdog of mount state changes.
@@ -60,18 +67,28 @@ func (m *Monitor) run(ctx context.Context) {
 	// Perform initial check immediately
 	m.checkAll(ctx)
 
-	ticker := time.NewTicker(m.interval)
-	defer ticker.Stop()
-
 	for {
+		// Apply jitter to prevent synchronized checks across multiple pods
+		jitteredInterval := m.intervalWithJitter()
+
 		select {
 		case <-ctx.Done():
 			m.logger.Info("monitor shutting down")
 			return
-		case <-ticker.C:
+		case <-time.After(jitteredInterval):
 			m.checkAll(ctx)
 		}
 	}
+}
+
+// intervalWithJitter returns the check interval with ±10% random jitter applied.
+// This prevents synchronized load spikes when many pods start simultaneously.
+func (m *Monitor) intervalWithJitter() time.Duration {
+	// Calculate jitter range: ±jitterFactor of the interval
+	jitterRange := float64(m.interval) * jitterFactor
+	// Generate random offset in range [-jitterRange, +jitterRange]
+	jitter := (rand.Float64()*2 - 1) * jitterRange
+	return m.interval + time.Duration(jitter)
 }
 
 func (m *Monitor) checkAll(ctx context.Context) {
