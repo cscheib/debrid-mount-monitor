@@ -25,7 +25,9 @@ func TestConfigValidation_Valid(t *testing.T) {
 	is := is.New(t)
 
 	cfg := &config.Config{
-		MountPaths:       []string{"/mnt/test"},
+		Mounts: []config.MountConfig{
+			{Path: "/mnt/test", CanaryFile: ".health-check", FailureThreshold: 3},
+		},
 		CanaryFile:       ".health-check",
 		CheckInterval:    30 * time.Second,
 		ReadTimeout:      5 * time.Second,
@@ -46,21 +48,26 @@ func TestConfigValidation_Valid(t *testing.T) {
 	is.NoErr(cfg.Validate()) // valid config should not error
 }
 
-func TestConfigValidation_NoMountPaths(t *testing.T) {
+// testMount returns a simple mount config for testing
+func testMount() config.MountConfig {
+	return config.MountConfig{Path: "/mnt/test", CanaryFile: ".health-check", FailureThreshold: 3}
+}
+
+func TestConfigValidation_NoMounts(t *testing.T) {
 	is := is.New(t)
 
 	cfg := config.DefaultConfig()
-	cfg.MountPaths = []string{}
+	cfg.Mounts = []config.MountConfig{}
 
 	err := cfg.Validate()
-	is.True(err != nil) // empty mount paths should error
+	is.True(err != nil) // empty mounts should error
 }
 
 func TestConfigValidation_CheckIntervalTooShort(t *testing.T) {
 	is := is.New(t)
 
 	cfg := config.DefaultConfig()
-	cfg.MountPaths = []string{"/mnt/test"}
+	cfg.Mounts = []config.MountConfig{testMount()}
 	cfg.CheckInterval = 500 * time.Millisecond
 
 	err := cfg.Validate()
@@ -71,7 +78,7 @@ func TestConfigValidation_ReadTimeoutTooShort(t *testing.T) {
 	is := is.New(t)
 
 	cfg := config.DefaultConfig()
-	cfg.MountPaths = []string{"/mnt/test"}
+	cfg.Mounts = []config.MountConfig{testMount()}
 	cfg.ReadTimeout = 50 * time.Millisecond
 
 	err := cfg.Validate()
@@ -82,7 +89,7 @@ func TestConfigValidation_ReadTimeoutExceedsCheckInterval(t *testing.T) {
 	is := is.New(t)
 
 	cfg := config.DefaultConfig()
-	cfg.MountPaths = []string{"/mnt/test"}
+	cfg.Mounts = []config.MountConfig{testMount()}
 	cfg.CheckInterval = 5 * time.Second
 	cfg.ReadTimeout = 10 * time.Second
 
@@ -94,7 +101,7 @@ func TestConfigValidation_InvalidFailureThreshold(t *testing.T) {
 	is := is.New(t)
 
 	cfg := config.DefaultConfig()
-	cfg.MountPaths = []string{"/mnt/test"}
+	cfg.Mounts = []config.MountConfig{testMount()}
 	cfg.FailureThreshold = 0
 
 	err := cfg.Validate()
@@ -116,7 +123,7 @@ func TestConfigValidation_InvalidHTTPPort(t *testing.T) {
 			is := is.New(t)
 
 			cfg := config.DefaultConfig()
-			cfg.MountPaths = []string{"/mnt/test"}
+			cfg.Mounts = []config.MountConfig{testMount()}
 			cfg.HTTPPort = tt.port
 
 			err := cfg.Validate()
@@ -129,7 +136,7 @@ func TestConfigValidation_InvalidLogLevel(t *testing.T) {
 	is := is.New(t)
 
 	cfg := config.DefaultConfig()
-	cfg.MountPaths = []string{"/mnt/test"}
+	cfg.Mounts = []config.MountConfig{testMount()}
 	cfg.LogLevel = "invalid"
 
 	err := cfg.Validate()
@@ -140,7 +147,7 @@ func TestConfigValidation_InvalidLogFormat(t *testing.T) {
 	is := is.New(t)
 
 	cfg := config.DefaultConfig()
-	cfg.MountPaths = []string{"/mnt/test"}
+	cfg.Mounts = []config.MountConfig{testMount()}
 	cfg.LogFormat = "xml"
 
 	err := cfg.Validate()
@@ -154,7 +161,7 @@ func TestConfigValidation_AllLogLevels(t *testing.T) {
 			is := is.New(t)
 
 			cfg := config.DefaultConfig()
-			cfg.MountPaths = []string{"/mnt/test"}
+			cfg.Mounts = []config.MountConfig{testMount()}
 			cfg.LogLevel = level
 
 			is.NoErr(cfg.Validate()) // valid log level should not error
@@ -169,7 +176,7 @@ func TestConfigValidation_AllLogFormats(t *testing.T) {
 			is := is.New(t)
 
 			cfg := config.DefaultConfig()
-			cfg.MountPaths = []string{"/mnt/test"}
+			cfg.Mounts = []config.MountConfig{testMount()}
 			cfg.LogFormat = format
 
 			is.NoErr(cfg.Validate()) // valid log format should not error

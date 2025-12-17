@@ -32,7 +32,6 @@ type Config struct {
 	ConfigFile string // Path to loaded config file ("" if none)
 
 	// Mount configuration
-	MountPaths []string      // Paths to monitor (legacy, derived from Mounts)
 	Mounts     []MountConfig // Per-mount configurations
 	CanaryFile string        // Default canary file for all mounts
 
@@ -59,7 +58,6 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		ConfigFile:       "",
-		MountPaths:       []string{},
 		Mounts:           []MountConfig{},
 		CanaryFile:       ".health-check",
 		CheckInterval:    30 * time.Second,
@@ -121,9 +119,9 @@ func Load() (*Config, error) {
 func (c *Config) Validate() error {
 	var result *multierror.Error
 
-	// Check for mounts - either via Mounts or legacy MountPaths
-	if len(c.Mounts) == 0 && len(c.MountPaths) == 0 {
-		result = multierror.Append(result, fmt.Errorf("at least one mount path is required"))
+	// Check for mounts
+	if len(c.Mounts) == 0 {
+		result = multierror.Append(result, fmt.Errorf("at least one mount is required"))
 	}
 
 	// Validate individual mount configs

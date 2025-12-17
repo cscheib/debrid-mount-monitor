@@ -175,21 +175,22 @@ func TestConfigFile_DefaultLocation_NotFound(t *testing.T) {
 	is.Equal(cfg.CheckInterval, 30*time.Second) // default checkInterval
 }
 
-// T013: Test backwards compatibility - no config file uses env vars
-func TestConfigFile_BackwardsCompatibility(t *testing.T) {
+// T013: Test programmatic mount configuration
+func TestConfigFile_ProgrammaticMounts(t *testing.T) {
 	is := is.New(t)
 
-	// This test verifies that the Config struct can still be used
-	// with MountPaths (legacy) when no config file is present
+	// This test verifies that the Config struct can be used
+	// with programmatically set Mounts when no config file is present
 	cfg := config.DefaultConfig()
-	cfg.MountPaths = []string{"/mnt/test1", "/mnt/test2"}
+	cfg.Mounts = []config.MountConfig{
+		{Path: "/mnt/test1", CanaryFile: ".health-check", FailureThreshold: 3},
+		{Path: "/mnt/test2", CanaryFile: ".health-check", FailureThreshold: 3},
+	}
 
-	// Validation should pass with legacy MountPaths
-	is.NoErr(cfg.Validate()) // valid config with MountPaths
+	// Validation should pass with programmatic Mounts
+	is.NoErr(cfg.Validate()) // valid config with Mounts
 
-	// Both Mounts (empty) and MountPaths should be acceptable
-	is.Equal(len(cfg.Mounts), 0)     // empty Mounts array
-	is.Equal(len(cfg.MountPaths), 2) // MountPaths count
+	is.Equal(len(cfg.Mounts), 2) // Mounts count
 }
 
 // T020: Test per-mount canary file override

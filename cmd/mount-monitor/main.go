@@ -39,7 +39,7 @@ func main() {
 
 	logger.Info("configuration loaded",
 		"source", configSource,
-		"mounts", len(cfg.Mounts)+len(cfg.MountPaths),
+		"mounts", len(cfg.Mounts),
 	)
 
 	logger.Info("starting mount monitor",
@@ -57,31 +57,15 @@ func main() {
 	)
 
 	// Create mounts from configuration
-	// Support both new Mounts config and legacy MountPaths
-	var mounts []*health.Mount
-	if len(cfg.Mounts) > 0 {
-		// Use new per-mount configuration
-		mounts = make([]*health.Mount, len(cfg.Mounts))
-		for i, mc := range cfg.Mounts {
-			mounts[i] = health.NewMount(mc.Name, mc.Path, mc.CanaryFile, mc.FailureThreshold)
-			logger.Info("mount registered",
-				"name", mc.Name,
-				"path", mc.Path,
-				"canary", mounts[i].CanaryPath,
-				"failureThreshold", mc.FailureThreshold,
-			)
-		}
-	} else {
-		// Legacy: use MountPaths with global settings
-		mounts = make([]*health.Mount, len(cfg.MountPaths))
-		for i, path := range cfg.MountPaths {
-			mounts[i] = health.NewMount("", path, cfg.CanaryFile, cfg.FailureThreshold)
-			logger.Info("mount registered",
-				"path", path,
-				"canary", mounts[i].CanaryPath,
-				"failureThreshold", cfg.FailureThreshold,
-			)
-		}
+	mounts := make([]*health.Mount, len(cfg.Mounts))
+	for i, mc := range cfg.Mounts {
+		mounts[i] = health.NewMount(mc.Name, mc.Path, mc.CanaryFile, mc.FailureThreshold)
+		logger.Info("mount registered",
+			"name", mc.Name,
+			"path", mc.Path,
+			"canary", mounts[i].CanaryPath,
+			"failureThreshold", mc.FailureThreshold,
+		)
 	}
 
 	// Create health checker
