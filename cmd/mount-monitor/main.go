@@ -39,7 +39,7 @@ func main() {
 
 	logger.Info("configuration loaded",
 		"source", configSource,
-		"mounts", len(cfg.Mounts)+len(cfg.MountPaths),
+		"mounts", len(cfg.Mounts),
 	)
 
 	logger.Info("starting mount monitor",
@@ -57,31 +57,15 @@ func main() {
 	)
 
 	// Create mounts from configuration
-	// Support both new Mounts config and legacy MountPaths
-	var mounts []*health.Mount
-	if len(cfg.Mounts) > 0 {
-		// Use new per-mount configuration
-		mounts = make([]*health.Mount, len(cfg.Mounts))
-		for i, mc := range cfg.Mounts {
-			mounts[i] = health.NewMount(mc.Name, mc.Path, mc.CanaryFile, mc.FailureThreshold)
-			logger.Info("mount registered",
-				"name", mc.Name,
-				"path", mc.Path,
-				"canary", mounts[i].CanaryPath,
-				"failureThreshold", mc.FailureThreshold,
-			)
-		}
-	} else {
-		// Legacy: use MountPaths with global settings
-		mounts = make([]*health.Mount, len(cfg.MountPaths))
-		for i, path := range cfg.MountPaths {
-			mounts[i] = health.NewMount("", path, cfg.CanaryFile, cfg.FailureThreshold)
-			logger.Info("mount registered",
-				"path", path,
-				"canary", mounts[i].CanaryPath,
-				"failureThreshold", cfg.FailureThreshold,
-			)
-		}
+	mounts := make([]*health.Mount, len(cfg.Mounts))
+	for i, mc := range cfg.Mounts {
+		mounts[i] = health.NewMount(mc.Name, mc.Path, mc.CanaryFile, mc.FailureThreshold)
+		logger.Info("mount registered",
+			"name", mc.Name,
+			"path", mc.Path,
+			"canary", mounts[i].CanaryPath,
+			"failureThreshold", mc.FailureThreshold,
+		)
 	}
 
 	// Create health checker
@@ -116,7 +100,7 @@ func main() {
 	mon.SetWatchdog(wd)
 
 	// Create HTTP server
-	srv := server.New(mounts, cfg.HTTPPort, logger)
+	srv := server.New(mounts, cfg.HTTPPort, Version, logger)
 
 	// Setup shutdown context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -148,16 +132,24 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer shutdownCancel()
 
+	// Shutdown HTTP server first - this stops accepting new connections immediately
+	// but allows in-flight requests to complete. Run in goroutine so we can
+	// cancel the monitor in parallel.
+	httpShutdownDone := make(chan error, 1)
+	go func() {
+		httpShutdownDone <- srv.Shutdown(shutdownCtx)
+	}()
+
 	// Cancel monitor context to stop health checks
 	cancel()
 
-	// Shutdown HTTP server
-	if err := srv.Shutdown(shutdownCtx); err != nil {
+	// Wait for monitor to finish current checks
+	mon.Wait()
+
+	// Wait for HTTP server shutdown to complete
+	if err := <-httpShutdownDone; err != nil {
 		logger.Error("http server shutdown error", "error", err)
 	}
-
-	// Wait for monitor to finish
-	mon.Wait()
 
 	logger.Info("shutdown complete")
 	os.Exit(0)

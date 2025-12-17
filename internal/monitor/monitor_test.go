@@ -1,4 +1,4 @@
-package unit
+package monitor_test
 
 import (
 	"context"
@@ -26,20 +26,18 @@ func TestMonitor_StartsAndStops(t *testing.T) {
 	checker := health.NewChecker(5 * time.Second)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	mon := monitor.New([]*health.Mount{mount}, checker, 100*time.Millisecond, 3, logger)
+	checkInterval := 100 * time.Millisecond
+	mon := monitor.New([]*health.Mount{mount}, checker, checkInterval, 3, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	mon.Start(ctx)
 
-	// Give it time to run at least one check
-	time.Sleep(150 * time.Millisecond)
+	// Poll until mount becomes healthy (more reliable than fixed sleep)
+	is.True(pollForStatus(t, mount, health.StatusHealthy, 10*time.Second, checkInterval)) // mount should become healthy
 
 	// Stop the monitor
 	cancel()
 	mon.Wait()
-
-	// Verify the mount was checked and is healthy
-	is.Equal(mount.GetStatus(), health.StatusHealthy) // mount should be healthy after check
 }
 
 func TestMonitor_DetectsFailure(t *testing.T) {
@@ -53,19 +51,17 @@ func TestMonitor_DetectsFailure(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	failureThreshold := 3
-	mon := monitor.New([]*health.Mount{mount}, checker, 50*time.Millisecond, failureThreshold, logger)
+	checkInterval := 50 * time.Millisecond
+	mon := monitor.New([]*health.Mount{mount}, checker, checkInterval, failureThreshold, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	mon.Start(ctx)
 
-	// Wait for enough checks to exceed failure threshold
-	time.Sleep(250 * time.Millisecond)
+	// Poll until mount becomes unhealthy (more reliable than fixed sleep)
+	is.True(pollForStatus(t, mount, health.StatusUnhealthy, 10*time.Second, checkInterval)) // mount should become unhealthy
 
 	cancel()
 	mon.Wait()
-
-	// Verify the mount transitioned to unhealthy
-	is.Equal(mount.GetStatus(), health.StatusUnhealthy) // mount should be unhealthy after failures
 }
 
 func TestMonitor_DetectsRecovery(t *testing.T) {
@@ -137,23 +133,17 @@ func TestMonitor_MultipleMount(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	failureThreshold := 2
+	checkInterval := 30 * time.Millisecond
 	mounts := []*health.Mount{mount1, mount2}
-	mon := monitor.New(mounts, checker, 30*time.Millisecond, failureThreshold, logger)
+	mon := monitor.New(mounts, checker, checkInterval, failureThreshold, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	mon.Start(ctx)
 
-	// Wait for enough checks to exceed failure threshold for mount2
-	// Need at least failureThreshold+1 intervals (initial check + threshold failures)
-	time.Sleep(time.Duration(failureThreshold+2) * 50 * time.Millisecond)
+	// Poll until both mounts reach expected states (more reliable than fixed sleep)
+	is.True(pollForStatus(t, mount1, health.StatusHealthy, 10*time.Second, checkInterval))   // mount1 should be healthy
+	is.True(pollForStatus(t, mount2, health.StatusUnhealthy, 10*time.Second, checkInterval)) // mount2 should be unhealthy
 
 	cancel()
 	mon.Wait()
-
-	// Mount1 should be healthy
-	is.Equal(mount1.GetStatus(), health.StatusHealthy) // mount1 should be healthy
-
-	// Mount2 should be unhealthy (at least degraded due to no canary)
-	status2 := mount2.GetStatus()
-	is.True(status2 == health.StatusUnhealthy || status2 == health.StatusDegraded) // mount2 should be unhealthy or degraded
 }

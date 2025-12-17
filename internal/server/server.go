@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
@@ -15,25 +14,27 @@ import (
 
 // Server provides HTTP endpoints for health probes.
 type Server struct {
-	mounts []*health.Mount
-	port   int
-	logger *slog.Logger
-	server *http.Server
-	mu     sync.RWMutex
+	mounts  []*health.Mount
+	port    int
+	version string
+	logger  *slog.Logger
+	server  *http.Server
 }
 
 // New creates a new Server instance.
-func New(mounts []*health.Mount, port int, logger *slog.Logger) *Server {
+func New(mounts []*health.Mount, port int, version string, logger *slog.Logger) *Server {
 	s := &Server{
-		mounts: mounts,
-		port:   port,
-		logger: logger,
+		mounts:  mounts,
+		port:    port,
+		version: version,
+		logger:  logger,
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz/live", s.handleLiveness)
 	mux.HandleFunc("/healthz/ready", s.handleReadiness)
 	mux.HandleFunc("/healthz/status", s.handleStatus)
+	mux.HandleFunc("/version", s.handleVersion)
 
 	s.server = &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
@@ -41,6 +42,7 @@ func New(mounts []*health.Mount, port int, logger *slog.Logger) *Server {
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	return s
@@ -215,5 +217,25 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		s.logger.Error("failed to encode status response", "error", err)
+	}
+}
+
+// VersionResponse represents the version endpoint response.
+type VersionResponse struct {
+	Version string `json:"version"`
+}
+
+// handleVersion responds with the service version.
+func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := VersionResponse{Version: s.version}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.logger.Error("failed to encode version response", "error", err)
 	}
 }

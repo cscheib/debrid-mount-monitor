@@ -1,4 +1,4 @@
-package unit
+package config_test
 
 import (
 	"os"
@@ -175,21 +175,22 @@ func TestConfigFile_DefaultLocation_NotFound(t *testing.T) {
 	is.Equal(cfg.CheckInterval, 30*time.Second) // default checkInterval
 }
 
-// T013: Test backwards compatibility - no config file uses env vars
-func TestConfigFile_BackwardsCompatibility(t *testing.T) {
+// T013: Test programmatic mount configuration
+func TestConfigFile_ProgrammaticMounts(t *testing.T) {
 	is := is.New(t)
 
-	// This test verifies that the Config struct can still be used
-	// with MountPaths (legacy) when no config file is present
+	// This test verifies that the Config struct can be used
+	// with programmatically set Mounts when no config file is present
 	cfg := config.DefaultConfig()
-	cfg.MountPaths = []string{"/mnt/test1", "/mnt/test2"}
+	cfg.Mounts = []config.MountConfig{
+		{Path: "/mnt/test1", CanaryFile: ".health-check", FailureThreshold: 3},
+		{Path: "/mnt/test2", CanaryFile: ".health-check", FailureThreshold: 3},
+	}
 
-	// Validation should pass with legacy MountPaths
-	is.NoErr(cfg.Validate()) // valid config with MountPaths
+	// Validation should pass with programmatic Mounts
+	is.NoErr(cfg.Validate()) // valid config with Mounts
 
-	// Both Mounts (empty) and MountPaths should be acceptable
-	is.Equal(len(cfg.Mounts), 0)     // empty Mounts array
-	is.Equal(len(cfg.MountPaths), 2) // MountPaths count
+	is.Equal(len(cfg.Mounts), 2) // Mounts count
 }
 
 // T020: Test per-mount canary file override
@@ -528,4 +529,136 @@ func TestConfigFile_FileSizeLimit_ExactlyOneMB(t *testing.T) {
 	err := cfg.LoadFromFileForTesting(configPath)
 
 	is.NoErr(err) // config file of exactly 1MB should not error
+}
+
+// =============================================================================
+// Watchdog Configuration JSON Loading Tests
+// =============================================================================
+
+// TestConfigFile_WatchdogConfig verifies watchdog settings are loaded from JSON.
+func TestConfigFile_WatchdogConfig(t *testing.T) {
+	is := is.New(t)
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	configJSON := `{
+		"mounts": [{"path": "/mnt/test"}],
+		"watchdog": {
+			"enabled": true,
+			"restartDelay": "30s",
+			"maxRetries": 5,
+			"retryBackoffInitial": "200ms",
+			"retryBackoffMax": "20s"
+		}
+	}`
+
+	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	if err := cfg.LoadFromFileForTesting(configPath); err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	is.Equal(cfg.Watchdog.Enabled, true)                             // watchdog.enabled
+	is.Equal(cfg.Watchdog.RestartDelay, 30*time.Second)              // watchdog.restartDelay
+	is.Equal(cfg.Watchdog.MaxRetries, 5)                             // watchdog.maxRetries
+	is.Equal(cfg.Watchdog.RetryBackoffInitial, 200*time.Millisecond) // watchdog.retryBackoffInitial
+	is.Equal(cfg.Watchdog.RetryBackoffMax, 20*time.Second)           // watchdog.retryBackoffMax
+}
+
+// TestConfigFile_WatchdogEnabled_ExplicitFalse verifies that explicitly setting
+// watchdog.enabled to false is distinguished from omitting the field entirely.
+// This tests the pointer semantics for the Enabled field.
+func TestConfigFile_WatchdogEnabled_ExplicitFalse(t *testing.T) {
+	is := is.New(t)
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	configJSON := `{
+		"mounts": [{"path": "/mnt/test"}],
+		"watchdog": {
+			"enabled": false
+		}
+	}`
+
+	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	// Pre-enable watchdog to verify explicit false overrides it
+	cfg.Watchdog.Enabled = true
+
+	if err := cfg.LoadFromFileForTesting(configPath); err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	// Explicit "enabled": false should set Enabled to false
+	is.Equal(cfg.Watchdog.Enabled, false) // explicit false should disable watchdog
+}
+
+// TestConfigFile_WatchdogEnabled_Omitted verifies that omitting watchdog.enabled
+// preserves the default value (distinguishing from explicit false).
+func TestConfigFile_WatchdogEnabled_Omitted(t *testing.T) {
+	is := is.New(t)
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	// Watchdog block present but enabled field omitted
+	configJSON := `{
+		"mounts": [{"path": "/mnt/test"}],
+		"watchdog": {
+			"maxRetries": 10
+		}
+	}`
+
+	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	// Default is false, so omitting should leave it as false
+	if err := cfg.LoadFromFileForTesting(configPath); err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	// Omitted enabled should preserve default (false)
+	is.Equal(cfg.Watchdog.Enabled, false) // omitted enabled preserves default
+	// But maxRetries should be updated
+	is.Equal(cfg.Watchdog.MaxRetries, 10) // maxRetries should be set
+}
+
+// TestConfigFile_WatchdogDefaults verifies watchdog defaults are preserved
+// when watchdog section is completely omitted.
+func TestConfigFile_WatchdogDefaults(t *testing.T) {
+	is := is.New(t)
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	// No watchdog section at all
+	configJSON := `{
+		"mounts": [{"path": "/mnt/test"}]
+	}`
+
+	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	if err := cfg.LoadFromFileForTesting(configPath); err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	// All watchdog settings should be defaults
+	is.Equal(cfg.Watchdog.Enabled, false)                            // default enabled
+	is.Equal(cfg.Watchdog.RestartDelay, time.Duration(0))            // default restartDelay
+	is.Equal(cfg.Watchdog.MaxRetries, 3)                             // default maxRetries
+	is.Equal(cfg.Watchdog.RetryBackoffInitial, 100*time.Millisecond) // default retryBackoffInitial
+	is.Equal(cfg.Watchdog.RetryBackoffMax, 10*time.Second)           // default retryBackoffMax
 }

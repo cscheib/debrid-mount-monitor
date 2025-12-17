@@ -197,7 +197,6 @@ func applyFileConfig(c *Config, fc *FileConfig) {
 	// Apply mount configurations with inheritance
 	if len(fc.Mounts) > 0 {
 		c.Mounts = make([]MountConfig, len(fc.Mounts))
-		c.MountPaths = make([]string, len(fc.Mounts))
 
 		for i, fm := range fc.Mounts {
 			// Apply per-mount config with inheritance from globals
@@ -221,7 +220,6 @@ func applyFileConfig(c *Config, fc *FileConfig) {
 			}
 
 			c.Mounts[i] = mc
-			c.MountPaths[i] = fm.Path
 		}
 	}
 
