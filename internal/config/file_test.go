@@ -562,11 +562,11 @@ func TestConfigFile_WatchdogConfig(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	is.Equal(cfg.Watchdog.Enabled, true)                              // watchdog.enabled
-	is.Equal(cfg.Watchdog.RestartDelay, 30*time.Second)               // watchdog.restartDelay
-	is.Equal(cfg.Watchdog.MaxRetries, 5)                              // watchdog.maxRetries
-	is.Equal(cfg.Watchdog.RetryBackoffInitial, 200*time.Millisecond)  // watchdog.retryBackoffInitial
-	is.Equal(cfg.Watchdog.RetryBackoffMax, 20*time.Second)            // watchdog.retryBackoffMax
+	is.Equal(cfg.Watchdog.Enabled, true)                             // watchdog.enabled
+	is.Equal(cfg.Watchdog.RestartDelay, 30*time.Second)              // watchdog.restartDelay
+	is.Equal(cfg.Watchdog.MaxRetries, 5)                             // watchdog.maxRetries
+	is.Equal(cfg.Watchdog.RetryBackoffInitial, 200*time.Millisecond) // watchdog.retryBackoffInitial
+	is.Equal(cfg.Watchdog.RetryBackoffMax, 20*time.Second)           // watchdog.retryBackoffMax
 }
 
 // TestConfigFile_WatchdogEnabled_ExplicitFalse verifies that explicitly setting
@@ -656,9 +656,9 @@ func TestConfigFile_WatchdogDefaults(t *testing.T) {
 	}
 
 	// All watchdog settings should be defaults
-	is.Equal(cfg.Watchdog.Enabled, false)                             // default enabled
-	is.Equal(cfg.Watchdog.RestartDelay, time.Duration(0))             // default restartDelay
-	is.Equal(cfg.Watchdog.MaxRetries, 3)                              // default maxRetries
-	is.Equal(cfg.Watchdog.RetryBackoffInitial, 100*time.Millisecond)  // default retryBackoffInitial
-	is.Equal(cfg.Watchdog.RetryBackoffMax, 10*time.Second)            // default retryBackoffMax
+	is.Equal(cfg.Watchdog.Enabled, false)                            // default enabled
+	is.Equal(cfg.Watchdog.RestartDelay, time.Duration(0))            // default restartDelay
+	is.Equal(cfg.Watchdog.MaxRetries, 3)                             // default maxRetries
+	is.Equal(cfg.Watchdog.RetryBackoffInitial, 100*time.Millisecond) // default retryBackoffInitial
+	is.Equal(cfg.Watchdog.RetryBackoffMax, 10*time.Second)           // default retryBackoffMax
 }
