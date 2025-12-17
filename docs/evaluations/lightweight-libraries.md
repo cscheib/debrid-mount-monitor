@@ -181,6 +181,20 @@ For any new dependency, the constitution requires:
 
 ---
 
+## Security Considerations
+
+| Library | Risk Profile | Notes |
+|---------|--------------|-------|
+| `matryer/is` | **Minimal** | Test-only dependency; never compiled into production binary |
+| `hashicorp/go-multierror` | **Low** | Widely audited in HashiCorp ecosystem (Terraform, Vault, Consul); minimal attack surface |
+
+Both recommended libraries:
+- Have no network, filesystem, or OS-level operations
+- Are pure data manipulation (error aggregation, test assertions)
+- Are actively maintained with security advisories tracked
+
+---
+
 ## Recommendations Summary
 
 ### Add These (High Value, Low Risk)

@@ -176,7 +176,7 @@ Reconsider adding client-go if the project needs to:
 | Maintenance | ✅ Self-contained | ❌ Track upstream releases |
 | Code complexity | ✅ 400 lines | ❌ External API changes |
 
-**Final Verdict**: The ~400 lines of custom Kubernetes client code is an excellent trade-off. It provides exactly what the project needs without the bloat. This is a case where "reinventing the wheel" produces a better outcome than using the standard library.
+**Final Verdict**: The ~400 lines of custom Kubernetes client code is an excellent trade-off. It provides exactly what the project needs without the bloat. This is a case where "reinventing the wheel" produces a better outcome than using a heavy external library.
 
 ---
 
