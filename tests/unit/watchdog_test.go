@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cscheib/debrid-mount-monitor/internal/watchdog"
+	"github.com/matryer/is"
 )
 
 // MockK8sClient implements K8sClientInterface for testing.
@@ -72,6 +73,8 @@ func (m *MockK8sClient) Namespace() string {
 
 // TestWatchdog_DisabledByConfig verifies watchdog remains disabled when config.Enabled is false.
 func TestWatchdog_DisabledByConfig(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             false,
 		RestartDelay:        0,
@@ -83,22 +86,18 @@ func TestWatchdog_DisabledByConfig(t *testing.T) {
 	wd := watchdog.NewWatchdog(cfg, "test-pod", "test-ns", testLogger())
 
 	// Start should succeed but watchdog should remain disabled
-	if err := wd.Start(context.Background()); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	is.NoErr(wd.Start(context.Background())) // start should succeed
 
-	if wd.IsEnabled() {
-		t.Error("watchdog should be disabled when config.Enabled is false")
-	}
+	is.True(!wd.IsEnabled()) // watchdog should be disabled
 
 	state := wd.State()
-	if state.State != watchdog.WatchdogDisabled {
-		t.Errorf("expected state WatchdogDisabled, got %v", state.State)
-	}
+	is.Equal(state.State, watchdog.WatchdogDisabled) // state should be disabled
 }
 
 // TestWatchdog_DisabledOutsideKubernetes verifies watchdog disables gracefully outside K8s.
 func TestWatchdog_DisabledOutsideKubernetes(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true, // Enabled in config, but we're not in K8s
 		RestartDelay:        0,
@@ -110,18 +109,16 @@ func TestWatchdog_DisabledOutsideKubernetes(t *testing.T) {
 	wd := watchdog.NewWatchdog(cfg, "test-pod", "test-ns", testLogger())
 
 	// Start should succeed but watchdog should remain disabled (not in cluster)
-	if err := wd.Start(context.Background()); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	is.NoErr(wd.Start(context.Background())) // start should succeed
 
 	// Should be disabled because we're not running in Kubernetes
-	if wd.IsEnabled() {
-		t.Error("watchdog should be disabled when not running in Kubernetes")
-	}
+	is.True(!wd.IsEnabled()) // watchdog should be disabled when not in Kubernetes
 }
 
 // TestWatchdog_StateTransitions_DisabledToArmed tests transition when using mock client.
 func TestWatchdog_StateTransitions_DisabledToArmed(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        5 * time.Second,
@@ -134,25 +131,21 @@ func TestWatchdog_StateTransitions_DisabledToArmed(t *testing.T) {
 
 	// Initial state should be disabled
 	state := wd.State()
-	if state.State != watchdog.WatchdogDisabled {
-		t.Errorf("initial state should be WatchdogDisabled, got %v", state.State)
-	}
+	is.Equal(state.State, watchdog.WatchdogDisabled) // initial state should be disabled
 
 	// Manually set armed state (simulating in-cluster)
 	wd.SetArmed()
 
 	state = wd.State()
-	if state.State != watchdog.WatchdogArmed {
-		t.Errorf("expected state WatchdogArmed after SetArmed(), got %v", state.State)
-	}
+	is.Equal(state.State, watchdog.WatchdogArmed) // state should be armed after SetArmed()
 
-	if !wd.IsEnabled() {
-		t.Error("watchdog should be enabled when armed")
-	}
+	is.True(wd.IsEnabled()) // watchdog should be enabled when armed
 }
 
 // TestWatchdog_ArmedToPendingRestart tests Armed -> PendingRestart transition.
 func TestWatchdog_ArmedToPendingRestart(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        1 * time.Hour, // Long delay to prevent actual trigger
@@ -171,16 +164,14 @@ func TestWatchdog_ArmedToPendingRestart(t *testing.T) {
 
 	// State should transition to PendingRestart
 	state := wd.State()
-	if state.State != watchdog.WatchdogPendingRestart {
-		t.Errorf("expected state WatchdogPendingRestart, got %v", state.State)
-	}
-	if state.PendingMount != "/mnt/test" {
-		t.Errorf("expected PendingMount /mnt/test, got %v", state.PendingMount)
-	}
+	is.Equal(state.State, watchdog.WatchdogPendingRestart) // state should be PendingRestart
+	is.Equal(state.PendingMount, "/mnt/test")              // PendingMount should be set
 }
 
 // TestWatchdog_PendingRestartToTriggered tests the full transition to Triggered state.
 func TestWatchdog_PendingRestartToTriggered(t *testing.T) {
+	is := is.New(t)
+
 	if testing.Short() {
 		t.Skip("skipping test with delays in short mode")
 	}
@@ -214,19 +205,17 @@ func TestWatchdog_PendingRestartToTriggered(t *testing.T) {
 	deleteCount := len(mockClient.DeletePodCalls)
 	mockClient.mu.Unlock()
 
-	if deleteCount == 0 {
-		t.Error("expected DeletePod to be called")
-	}
+	is.True(deleteCount > 0) // DeletePod should have been called
 
 	// State should be Triggered
 	state := wd.State()
-	if state.State != watchdog.WatchdogTriggered {
-		t.Errorf("expected state WatchdogTriggered, got %v", state.State)
-	}
+	is.Equal(state.State, watchdog.WatchdogTriggered) // state should be Triggered
 }
 
 // TestWatchdog_RestartCancellationOnRecovery tests that recovery cancels pending restart.
 func TestWatchdog_RestartCancellationOnRecovery(t *testing.T) {
+	is := is.New(t)
+
 	if testing.Short() {
 		t.Skip("skipping test with delays in short mode")
 	}
@@ -249,9 +238,7 @@ func TestWatchdog_RestartCancellationOnRecovery(t *testing.T) {
 
 	// Verify pending state
 	state := wd.State()
-	if state.State != watchdog.WatchdogPendingRestart {
-		t.Errorf("expected PendingRestart, got %v", state.State)
-	}
+	is.Equal(state.State, watchdog.WatchdogPendingRestart) // should be PendingRestart
 
 	// Recover before delay expires
 	time.Sleep(50 * time.Millisecond)
@@ -259,9 +246,7 @@ func TestWatchdog_RestartCancellationOnRecovery(t *testing.T) {
 
 	// Should be back to Armed
 	state = wd.State()
-	if state.State != watchdog.WatchdogArmed {
-		t.Errorf("expected Armed after recovery, got %v", state.State)
-	}
+	is.Equal(state.State, watchdog.WatchdogArmed) // should be Armed after recovery
 
 	// Wait to ensure no delete happens
 	time.Sleep(600 * time.Millisecond)
@@ -270,13 +255,13 @@ func TestWatchdog_RestartCancellationOnRecovery(t *testing.T) {
 	deleteCount := len(mockClient.DeletePodCalls)
 	mockClient.mu.Unlock()
 
-	if deleteCount > 0 {
-		t.Error("DeletePod should not have been called after recovery")
-	}
+	is.Equal(deleteCount, 0) // DeletePod should not have been called after recovery
 }
 
 // TestWatchdog_DeletePodRetryWithBackoff tests retry logic with exponential backoff.
 func TestWatchdog_DeletePodRetryWithBackoff(t *testing.T) {
+	is := is.New(t)
+
 	if testing.Short() {
 		t.Skip("skipping test with delays in short mode")
 	}
@@ -318,17 +303,14 @@ func TestWatchdog_DeletePodRetryWithBackoff(t *testing.T) {
 	deleteCount := len(mockClient.DeletePodCalls)
 	mockClient.mu.Unlock()
 
-	if deleteCount != 3 {
-		t.Errorf("expected 3 DeletePod calls (retry logic), got %d", deleteCount)
-	}
-
-	if exitCalled.Load() {
-		t.Error("exit should not have been called on successful retry")
-	}
+	is.Equal(deleteCount, 3)    // should have 3 DeletePod calls (retry logic)
+	is.True(!exitCalled.Load()) // exit should not have been called on successful retry
 }
 
 // TestWatchdog_RetryExhaustionExitFallback tests exit fallback after retries exhausted.
 func TestWatchdog_RetryExhaustionExitFallback(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        0, // Immediate
@@ -359,17 +341,14 @@ func TestWatchdog_RetryExhaustionExitFallback(t *testing.T) {
 	// Wait for retries to exhaust
 	time.Sleep(100 * time.Millisecond)
 
-	if !exitCalled.Load() {
-		t.Error("exit should have been called after retries exhausted")
-	}
-
-	if atomic.LoadInt32(&exitCode) != 1 {
-		t.Errorf("expected exit code 1, got %d", exitCode)
-	}
+	is.True(exitCalled.Load())                      // exit should have been called after retries exhausted
+	is.Equal(atomic.LoadInt32(&exitCode), int32(1)) // exit code should be 1
 }
 
 // TestWatchdog_RBACValidationFailure tests handling when CanDeletePods returns false.
 func TestWatchdog_RBACValidationFailure(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        0,
@@ -392,13 +371,13 @@ func TestWatchdog_RBACValidationFailure(t *testing.T) {
 	// This is tested via the state remaining disabled
 
 	state := wd.State()
-	if state.State != watchdog.WatchdogDisabled {
-		t.Errorf("expected WatchdogDisabled, got %v", state.State)
-	}
+	is.Equal(state.State, watchdog.WatchdogDisabled) // state should be disabled
 }
 
 // TestWatchdog_PodAlreadyTerminating tests skip deletion when pod is already terminating.
 func TestWatchdog_PodAlreadyTerminating(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        0, // Immediate
@@ -428,13 +407,13 @@ func TestWatchdog_PodAlreadyTerminating(t *testing.T) {
 	deleteCount := len(mockClient.DeletePodCalls)
 	mockClient.mu.Unlock()
 
-	if deleteCount > 0 {
-		t.Error("DeletePod should not have been called when pod is already terminating")
-	}
+	is.Equal(deleteCount, 0) // DeletePod should not have been called when pod is already terminating
 }
 
 // TestWatchdog_DisabledIgnoresUnhealthy tests that disabled watchdog ignores mount events.
 func TestWatchdog_DisabledIgnoresUnhealthy(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             false, // Disabled
 		RestartDelay:        0,
@@ -451,13 +430,13 @@ func TestWatchdog_DisabledIgnoresUnhealthy(t *testing.T) {
 	wd.OnMountUnhealthy("/mnt/test", 3)
 
 	state := wd.State()
-	if state.State != watchdog.WatchdogDisabled {
-		t.Error("OnMountUnhealthy should not change state when disabled")
-	}
+	is.Equal(state.State, watchdog.WatchdogDisabled) // state should remain disabled
 }
 
 // TestWatchdog_HealthyIgnoredWhenNotPending tests healthy event when not in pending state.
 func TestWatchdog_HealthyIgnoredWhenNotPending(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        1 * time.Hour,
@@ -474,13 +453,13 @@ func TestWatchdog_HealthyIgnoredWhenNotPending(t *testing.T) {
 
 	// Should remain Armed
 	state := wd.State()
-	if state.State != watchdog.WatchdogArmed {
-		t.Errorf("expected Armed, got %v", state.State)
-	}
+	is.Equal(state.State, watchdog.WatchdogArmed) // state should remain Armed
 }
 
 // TestWatchdog_RecoveryDifferentMount tests that recovery of different mount doesn't cancel.
 func TestWatchdog_RecoveryDifferentMount(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        500 * time.Millisecond,
@@ -502,16 +481,14 @@ func TestWatchdog_RecoveryDifferentMount(t *testing.T) {
 
 	// Should still be pending restart for mount A
 	state := wd.State()
-	if state.State != watchdog.WatchdogPendingRestart {
-		t.Errorf("expected PendingRestart, got %v", state.State)
-	}
-	if state.PendingMount != "/mnt/a" {
-		t.Errorf("expected PendingMount /mnt/a, got %v", state.PendingMount)
-	}
+	is.Equal(state.State, watchdog.WatchdogPendingRestart) // should be PendingRestart
+	is.Equal(state.PendingMount, "/mnt/a")                 // PendingMount should be /mnt/a
 }
 
 // TestWatchdog_EventCreatedOnRestart tests that Kubernetes event is created.
 func TestWatchdog_EventCreatedOnRestart(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        0, // Immediate
@@ -539,20 +516,10 @@ func TestWatchdog_EventCreatedOnRestart(t *testing.T) {
 	}
 	mockClient.mu.Unlock()
 
-	if eventCount == 0 {
-		t.Error("expected CreateEvent to be called")
-		return
-	}
-
-	if event.PodName != "test-pod" {
-		t.Errorf("expected PodName test-pod, got %v", event.PodName)
-	}
-	if event.MountPath != "/mnt/test" {
-		t.Errorf("expected MountPath /mnt/test, got %v", event.MountPath)
-	}
-	if event.FailureCount != 5 {
-		t.Errorf("expected FailureCount 5, got %v", event.FailureCount)
-	}
+	is.True(eventCount > 0)                // CreateEvent should have been called
+	is.Equal(event.PodName, "test-pod")    // PodName
+	is.Equal(event.MountPath, "/mnt/test") // MountPath
+	is.Equal(event.FailureCount, 5)        // FailureCount
 }
 
 // TestWatchdogStatus_String tests the String() method of WatchdogStatus.
@@ -570,15 +537,16 @@ func TestWatchdogStatus_String(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
-			if got := tt.status.String(); got != tt.expected {
-				t.Errorf("WatchdogStatus(%d).String() = %q, want %q", tt.status, got, tt.expected)
-			}
+			is := is.New(t)
+			is.Equal(tt.status.String(), tt.expected) // status string
 		})
 	}
 }
 
 // TestWatchdogConfig_Validation tests configuration validation.
 func TestWatchdogConfig_Validation(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        30 * time.Second,
@@ -587,16 +555,14 @@ func TestWatchdogConfig_Validation(t *testing.T) {
 		RetryBackoffMax:     30 * time.Second,
 	}
 
-	if cfg.RestartDelay != 30*time.Second {
-		t.Error("RestartDelay not set correctly")
-	}
-	if cfg.MaxRetries != 5 {
-		t.Error("MaxRetries not set correctly")
-	}
+	is.Equal(cfg.RestartDelay, 30*time.Second) // RestartDelay
+	is.Equal(cfg.MaxRetries, 5)                // MaxRetries
 }
 
 // TestWatchdog_ExitFuncOverride tests that the exit function can be overridden.
 func TestWatchdog_ExitFuncOverride(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             false,
 		RestartDelay:        0,
@@ -614,14 +580,14 @@ func TestWatchdog_ExitFuncOverride(t *testing.T) {
 		exitCode = code
 	})
 
-	if exitCalled {
-		t.Error("exit should not have been called yet")
-	}
+	is.True(!exitCalled) // exit should not have been called yet
 	_ = exitCode
 }
 
 // TestRestartEvent_Fields tests the RestartEvent struct fields.
 func TestRestartEvent_Fields(t *testing.T) {
+	is := is.New(t)
+
 	event := watchdog.RestartEvent{
 		Timestamp:         time.Now(),
 		PodName:           "test-pod",
@@ -632,25 +598,17 @@ func TestRestartEvent_Fields(t *testing.T) {
 		UnhealthyDuration: 30 * time.Second,
 	}
 
-	if event.PodName != "test-pod" {
-		t.Error("PodName not set correctly")
-	}
-	if event.Namespace != "test-ns" {
-		t.Error("Namespace not set correctly")
-	}
-	if event.MountPath != "/mnt/test" {
-		t.Error("MountPath not set correctly")
-	}
-	if event.FailureCount != 5 {
-		t.Error("FailureCount not set correctly")
-	}
-	if event.UnhealthyDuration != 30*time.Second {
-		t.Error("UnhealthyDuration not set correctly")
-	}
+	is.Equal(event.PodName, "test-pod")               // PodName
+	is.Equal(event.Namespace, "test-ns")              // Namespace
+	is.Equal(event.MountPath, "/mnt/test")            // MountPath
+	is.Equal(event.FailureCount, 5)                   // FailureCount
+	is.Equal(event.UnhealthyDuration, 30*time.Second) // UnhealthyDuration
 }
 
 // TestWatchdogState_Fields tests the WatchdogState struct fields.
 func TestWatchdogState_Fields(t *testing.T) {
+	is := is.New(t)
+
 	now := time.Now()
 	state := watchdog.WatchdogState{
 		State:          watchdog.WatchdogArmed,
@@ -660,22 +618,16 @@ func TestWatchdogState_Fields(t *testing.T) {
 		LastError:      nil,
 	}
 
-	if state.State != watchdog.WatchdogArmed {
-		t.Error("State not set correctly")
-	}
-	if state.UnhealthySince == nil || !state.UnhealthySince.Equal(now) {
-		t.Error("UnhealthySince not set correctly")
-	}
-	if state.PendingMount != "/mnt/test" {
-		t.Error("PendingMount not set correctly")
-	}
-	if state.RetryCount != 2 {
-		t.Error("RetryCount not set correctly")
-	}
+	is.Equal(state.State, watchdog.WatchdogArmed) // State
+	is.True(state.UnhealthySince != nil)          // UnhealthySince should be set
+	is.Equal(state.PendingMount, "/mnt/test")     // PendingMount
+	is.Equal(state.RetryCount, 2)                 // RetryCount
 }
 
 // TestWatchdog_ShutdownAbortsRestart tests that pending restart is aborted when context is cancelled.
 func TestWatchdog_ShutdownAbortsRestart(t *testing.T) {
+	is := is.New(t)
+
 	if testing.Short() {
 		t.Skip("skipping test with delays in short mode")
 	}
@@ -696,10 +648,8 @@ func TestWatchdog_ShutdownAbortsRestart(t *testing.T) {
 
 	// Create a cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
-	if err := wd.Start(ctx); err != nil {
-		t.Fatalf("Start failed: %v", err)
-	}
-	wd.SetArmed() // Force armed state since we're not in-cluster
+	is.NoErr(wd.Start(ctx)) // Start should succeed
+	wd.SetArmed()           // Force armed state since we're not in-cluster
 
 	// Trigger restart
 	wd.OnMountUnhealthy("/mnt/test", 3)
@@ -716,13 +666,13 @@ func TestWatchdog_ShutdownAbortsRestart(t *testing.T) {
 	deleteCount := len(mockClient.DeletePodCalls)
 	mockClient.mu.Unlock()
 
-	if deleteCount != 0 {
-		t.Errorf("expected 0 DeletePod calls (shutdown aborted restart), got %d", deleteCount)
-	}
+	is.Equal(deleteCount, 0) // shutdown should have aborted restart
 }
 
 // TestWatchdog_PermanentErrorStopsRetry tests that permanent errors stop retry loop.
 func TestWatchdog_PermanentErrorStopsRetry(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        0,
@@ -756,20 +706,16 @@ func TestWatchdog_PermanentErrorStopsRetry(t *testing.T) {
 	deleteCount := len(mockClient.DeletePodCalls)
 	mockClient.mu.Unlock()
 
-	if deleteCount != 1 {
-		t.Errorf("expected 1 DeletePod call (permanent error stops retries), got %d", deleteCount)
-	}
-
-	// Exit should be called after permanent error
-	if !exitCalled.Load() {
-		t.Error("exit should have been called after permanent error")
-	}
+	is.Equal(deleteCount, 1)   // permanent error should stop retries after 1 call
+	is.True(exitCalled.Load()) // exit should have been called after permanent error
 }
 
 // TestWatchdog_ConcurrentMountFailures tests behavior when multiple mounts fail simultaneously.
 // The watchdog uses a single PendingMount field, so only the first failure triggers restart.
 // Subsequent failures for different mounts are ignored until recovery.
 func TestWatchdog_ConcurrentMountFailures(t *testing.T) {
+	is := is.New(t)
+
 	cfg := watchdog.Config{
 		Enabled:             true,
 		RestartDelay:        1 * time.Hour, // Long delay to prevent actual trigger
@@ -787,37 +733,29 @@ func TestWatchdog_ConcurrentMountFailures(t *testing.T) {
 	wd.OnMountUnhealthy("/mnt/a", 3)
 
 	state := wd.State()
-	if state.State != watchdog.WatchdogPendingRestart {
-		t.Errorf("expected PendingRestart after first failure, got %v", state.State)
-	}
-	if state.PendingMount != "/mnt/a" {
-		t.Errorf("expected PendingMount /mnt/a, got %v", state.PendingMount)
-	}
+	is.Equal(state.State, watchdog.WatchdogPendingRestart) // should be PendingRestart
+	is.Equal(state.PendingMount, "/mnt/a")                 // PendingMount should be /mnt/a
 
 	// Second mount fails simultaneously - should be ignored (already pending)
 	wd.OnMountUnhealthy("/mnt/b", 5)
 
 	state = wd.State()
-	if state.State != watchdog.WatchdogPendingRestart {
-		t.Errorf("expected PendingRestart to remain, got %v", state.State)
-	}
+	is.Equal(state.State, watchdog.WatchdogPendingRestart) // should remain PendingRestart
 	// PendingMount should still be the first one that triggered
-	if state.PendingMount != "/mnt/a" {
-		t.Errorf("expected PendingMount to remain /mnt/a, got %v", state.PendingMount)
-	}
+	is.Equal(state.PendingMount, "/mnt/a") // PendingMount should remain /mnt/a
 
 	// Third mount fails - also ignored
 	wd.OnMountUnhealthy("/mnt/c", 2)
 
 	state = wd.State()
-	if state.PendingMount != "/mnt/a" {
-		t.Errorf("expected PendingMount to still be /mnt/a, got %v", state.PendingMount)
-	}
+	is.Equal(state.PendingMount, "/mnt/a") // PendingMount should still be /mnt/a
 }
 
 // TestWatchdog_RapidStateTransitions tests rapid OnMountUnhealthy -> OnMountHealthy -> OnMountUnhealthy
 // to verify timer cleanup and no race conditions.
 func TestWatchdog_RapidStateTransitions(t *testing.T) {
+	is := is.New(t)
+
 	if testing.Short() {
 		t.Skip("skipping test with delays in short mode")
 	}
@@ -840,18 +778,14 @@ func TestWatchdog_RapidStateTransitions(t *testing.T) {
 		wd.OnMountUnhealthy("/mnt/test", 3)
 
 		state := wd.State()
-		if state.State != watchdog.WatchdogPendingRestart {
-			t.Errorf("iteration %d: expected PendingRestart, got %v", i, state.State)
-		}
+		is.Equal(state.State, watchdog.WatchdogPendingRestart) // should be PendingRestart
 
 		// Quick recovery before timer fires
 		time.Sleep(10 * time.Millisecond)
 		wd.OnMountHealthy("/mnt/test")
 
 		state = wd.State()
-		if state.State != watchdog.WatchdogArmed {
-			t.Errorf("iteration %d: expected Armed after recovery, got %v", i, state.State)
-		}
+		is.Equal(state.State, watchdog.WatchdogArmed) // should be Armed after recovery
 	}
 
 	// Wait to ensure no delayed triggers happen
@@ -862,13 +796,9 @@ func TestWatchdog_RapidStateTransitions(t *testing.T) {
 	deleteCount := len(mockClient.DeletePodCalls)
 	mockClient.mu.Unlock()
 
-	if deleteCount != 0 {
-		t.Errorf("expected 0 DeletePod calls after rapid transitions, got %d", deleteCount)
-	}
+	is.Equal(deleteCount, 0) // all rapid transitions should have been cancelled
 
 	// Final state should be Armed
 	state := wd.State()
-	if state.State != watchdog.WatchdogArmed {
-		t.Errorf("expected final state Armed, got %v", state.State)
-	}
+	is.Equal(state.State, watchdog.WatchdogArmed) // final state should be Armed
 }

@@ -6,37 +6,28 @@ import (
 	"time"
 
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
+	"github.com/matryer/is"
 )
 
 func TestNewMount(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("test-mount", "/mnt/test", ".health-check", 3)
 
-	if mount.Name != "test-mount" {
-		t.Errorf("expected name 'test-mount', got %q", mount.Name)
-	}
-	if mount.Path != "/mnt/test" {
-		t.Errorf("expected path '/mnt/test', got %q", mount.Path)
-	}
-	if mount.CanaryPath != "/mnt/test/.health-check" {
-		t.Errorf("expected canary path '/mnt/test/.health-check', got %q", mount.CanaryPath)
-	}
-	if mount.FailureThreshold != 3 {
-		t.Errorf("expected failure threshold 3, got %d", mount.FailureThreshold)
-	}
-	if mount.GetStatus() != health.StatusUnknown {
-		t.Errorf("expected initial status Unknown, got %v", mount.GetStatus())
-	}
-	if mount.GetFailureCount() != 0 {
-		t.Errorf("expected initial failure count 0, got %d", mount.GetFailureCount())
-	}
+	is.Equal(mount.Name, "test-mount")                    // name
+	is.Equal(mount.Path, "/mnt/test")                     // path
+	is.Equal(mount.CanaryPath, "/mnt/test/.health-check") // canary path
+	is.Equal(mount.FailureThreshold, 3)                   // failure threshold
+	is.Equal(mount.GetStatus(), health.StatusUnknown)     // initial status
+	is.Equal(mount.GetFailureCount(), 0)                  // initial failure count
 }
 
 func TestNewMount_TrailingSlash(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test/", ".health-check", 3)
 
-	if mount.CanaryPath != "/mnt/test/.health-check" {
-		t.Errorf("expected canary path '/mnt/test/.health-check', got %q", mount.CanaryPath)
-	}
+	is.Equal(mount.CanaryPath, "/mnt/test/.health-check") // trailing slash should be handled
 }
 
 func TestHealthStatus_String(t *testing.T) {
@@ -52,14 +43,15 @@ func TestHealthStatus_String(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
-			if got := tt.status.String(); got != tt.expected {
-				t.Errorf("expected %q, got %q", tt.expected, got)
-			}
+			is := is.New(t)
+			is.Equal(tt.status.String(), tt.expected) // status string
 		})
 	}
 }
 
 func TestMount_UpdateState_SuccessfulCheck(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -73,21 +65,15 @@ func TestMount_UpdateState_SuccessfulCheck(t *testing.T) {
 
 	transition := mount.UpdateState(result, failureThreshold)
 
-	if mount.GetStatus() != health.StatusHealthy {
-		t.Errorf("expected status Healthy, got %v", mount.GetStatus())
-	}
-	if mount.GetFailureCount() != 0 {
-		t.Errorf("expected failure count 0, got %d", mount.GetFailureCount())
-	}
-	if transition == nil {
-		t.Error("expected state transition from Unknown to Healthy")
-	}
-	if transition != nil && transition.NewState != health.StatusHealthy {
-		t.Errorf("expected transition to Healthy, got %v", transition.NewState)
-	}
+	is.Equal(mount.GetStatus(), health.StatusHealthy)   // status should be healthy
+	is.Equal(mount.GetFailureCount(), 0)                // failure count should be 0
+	is.True(transition != nil)                          // should have transition
+	is.Equal(transition.NewState, health.StatusHealthy) // transition to healthy
 }
 
 func TestMount_UpdateState_FailedCheck_Degraded(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -102,18 +88,14 @@ func TestMount_UpdateState_FailedCheck_Degraded(t *testing.T) {
 
 	transition := mount.UpdateState(result, failureThreshold)
 
-	if mount.GetStatus() != health.StatusDegraded {
-		t.Errorf("expected status Degraded, got %v", mount.GetStatus())
-	}
-	if mount.GetFailureCount() != 1 {
-		t.Errorf("expected failure count 1, got %d", mount.GetFailureCount())
-	}
-	if transition == nil {
-		t.Error("expected state transition")
-	}
+	is.Equal(mount.GetStatus(), health.StatusDegraded) // status should be degraded
+	is.Equal(mount.GetFailureCount(), 1)               // failure count should be 1
+	is.True(transition != nil)                         // should have transition
 }
 
 func TestMount_UpdateState_FailedCheck_Unhealthy(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -129,15 +111,13 @@ func TestMount_UpdateState_FailedCheck_Unhealthy(t *testing.T) {
 		mount.UpdateState(result, failureThreshold)
 	}
 
-	if mount.GetStatus() != health.StatusUnhealthy {
-		t.Errorf("expected status Unhealthy after %d failures, got %v", failureThreshold, mount.GetStatus())
-	}
-	if mount.GetFailureCount() != failureThreshold {
-		t.Errorf("expected failure count %d, got %d", failureThreshold, mount.GetFailureCount())
-	}
+	is.Equal(mount.GetStatus(), health.StatusUnhealthy) // status should be unhealthy
+	is.Equal(mount.GetFailureCount(), failureThreshold) // failure count should equal threshold
 }
 
 func TestMount_UpdateState_RecoveryFromUnhealthy(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -153,9 +133,7 @@ func TestMount_UpdateState_RecoveryFromUnhealthy(t *testing.T) {
 		mount.UpdateState(result, failureThreshold)
 	}
 
-	if mount.GetStatus() != health.StatusUnhealthy {
-		t.Fatalf("expected mount to be Unhealthy, got %v", mount.GetStatus())
-	}
+	is.Equal(mount.GetStatus(), health.StatusUnhealthy) // mount should be unhealthy
 
 	// Recovery with successful check
 	successResult := &health.CheckResult{
@@ -168,21 +146,15 @@ func TestMount_UpdateState_RecoveryFromUnhealthy(t *testing.T) {
 
 	transition := mount.UpdateState(successResult, failureThreshold)
 
-	if mount.GetStatus() != health.StatusHealthy {
-		t.Errorf("expected status Healthy after recovery, got %v", mount.GetStatus())
-	}
-	if mount.GetFailureCount() != 0 {
-		t.Errorf("expected failure count 0 after recovery, got %d", mount.GetFailureCount())
-	}
-	if transition == nil {
-		t.Error("expected recovery transition")
-	}
-	if transition != nil && transition.Trigger != "recovered" {
-		t.Errorf("expected trigger 'recovered', got %q", transition.Trigger)
-	}
+	is.Equal(mount.GetStatus(), health.StatusHealthy) // status should be healthy after recovery
+	is.Equal(mount.GetFailureCount(), 0)              // failure count should be 0
+	is.True(transition != nil)                        // should have transition
+	is.Equal(transition.Trigger, "recovered")         // trigger should be recovered
 }
 
 func TestMount_UpdateState_NoTransitionOnSameState(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -194,9 +166,7 @@ func TestMount_UpdateState_NoTransitionOnSameState(t *testing.T) {
 		Duration:  100 * time.Millisecond,
 	}
 	transition1 := mount.UpdateState(result1, failureThreshold)
-	if transition1 == nil {
-		t.Error("expected transition on first check")
-	}
+	is.True(transition1 != nil) // should have transition on first check
 
 	// Second successful check - no transition
 	result2 := &health.CheckResult{
@@ -206,12 +176,12 @@ func TestMount_UpdateState_NoTransitionOnSameState(t *testing.T) {
 		Duration:  100 * time.Millisecond,
 	}
 	transition2 := mount.UpdateState(result2, failureThreshold)
-	if transition2 != nil {
-		t.Error("expected no transition when state unchanged")
-	}
+	is.True(transition2 == nil) // no transition when state unchanged
 }
 
 func TestMount_Snapshot(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -227,21 +197,15 @@ func TestMount_Snapshot(t *testing.T) {
 
 	snapshot := mount.Snapshot()
 
-	if snapshot.Path != "/mnt/test" {
-		t.Errorf("expected path '/mnt/test', got %q", snapshot.Path)
-	}
-	if snapshot.Status != health.StatusDegraded {
-		t.Errorf("expected status Degraded, got %v", snapshot.Status)
-	}
-	if snapshot.FailureCount != 1 {
-		t.Errorf("expected failure count 1, got %d", snapshot.FailureCount)
-	}
-	if snapshot.LastError != "connection refused" {
-		t.Errorf("expected error 'connection refused', got %q", snapshot.LastError)
-	}
+	is.Equal(snapshot.Path, "/mnt/test")               // path
+	is.Equal(snapshot.Status, health.StatusDegraded)   // status
+	is.Equal(snapshot.FailureCount, 1)                 // failure count
+	is.Equal(snapshot.LastError, "connection refused") // last error
 }
 
 func TestMount_TransientFailure_NoRestart(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -267,17 +231,11 @@ func TestMount_TransientFailure_NoRestart(t *testing.T) {
 	}
 
 	// Should be Degraded, not Unhealthy
-	if mount.GetStatus() != health.StatusDegraded {
-		t.Errorf("expected status Degraded (not Unhealthy) after 2 failures, got %v", mount.GetStatus())
-	}
+	is.Equal(mount.GetStatus(), health.StatusDegraded) // should be degraded after 2 failures
 
 	// Recovery
 	mount.UpdateState(successResult, failureThreshold)
 
-	if mount.GetStatus() != health.StatusHealthy {
-		t.Errorf("expected status Healthy after recovery, got %v", mount.GetStatus())
-	}
-	if mount.GetFailureCount() != 0 {
-		t.Errorf("expected failure count reset to 0, got %d", mount.GetFailureCount())
-	}
+	is.Equal(mount.GetStatus(), health.StatusHealthy) // should be healthy after recovery
+	is.Equal(mount.GetFailureCount(), 0)              // failure count should reset
 }

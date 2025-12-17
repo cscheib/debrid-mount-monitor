@@ -1,23 +1,19 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.1.1 → 1.2.0 (MINOR - added Approved Dependencies subsection)
+Version change: 1.2.0 → 1.3.0 (MINOR - added approved dependencies)
 
 Modified sections:
-- I. Minimal Dependencies: Added "Approved Dependencies" subsection with:
-  - Pre-approved dependency table (starting with spf13/pflag)
-  - Dependency Approval Criteria (5 requirements)
-  - Process for adding new dependencies
+- I. Minimal Dependencies: Added two dependencies to Approved Dependencies table:
+  - github.com/matryer/is - Test assertions (zero transitive deps)
+  - github.com/hashicorp/go-multierror - Multi-error collection (1 transitive dep)
 
-Added sections:
-- Approved Dependencies table
-- Dependency Approval Criteria
-- Adding New Dependencies process
+Added sections: None
 
 Removed sections: None
 
 Templates requiring updates:
-- .specify/templates/plan-template.md ✅ (compatible - references generic Constitution Check)
+- .specify/templates/plan-template.md ✅ (compatible - no changes required)
 - .specify/templates/spec-template.md ✅ (compatible - no changes required)
 - .specify/templates/tasks-template.md ✅ (compatible - no changes required)
 
@@ -59,6 +55,8 @@ The following external dependencies have been reviewed and approved for use:
 | Package | Purpose | Justification |
 |---------|---------|---------------|
 | `github.com/spf13/pflag` | POSIX-compliant CLI flag parsing | stdlib `flag` package doesn't enforce single-dash for short flags, double-dash for long flags. pflag is a drop-in replacement with zero transitive dependencies. |
+| `github.com/matryer/is` | Test assertions | stdlib testing requires verbose if/t.Errorf patterns. is provides clean equality assertions with zero transitive dependencies. Test-only (no production impact). |
+| `github.com/hashicorp/go-multierror` | Multi-error collection | stdlib has no built-in way to collect multiple errors while preserving individual errors. Single transitive dep (errwrap). Battle-tested in HashiCorp ecosystem. |
 
 **Dependency Approval Criteria**:
 - MUST solve a problem that stdlib cannot reasonably address
@@ -188,4 +186,4 @@ This constitution defines the non-negotiable architectural constraints for the d
 - Violations MUST be justified in the Complexity Tracking section of the implementation plan
 - Unjustified violations are grounds for PR rejection
 
-**Version**: 1.2.0 | **Ratified**: 2025-12-14 | **Last Amended**: 2025-12-16
+**Version**: 1.3.0 | **Ratified**: 2025-12-14 | **Last Amended**: 2025-12-16

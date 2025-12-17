@@ -9,10 +9,13 @@ import (
 
 	"github.com/cscheib/debrid-mount-monitor/internal/config"
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
+	"github.com/matryer/is"
 )
 
 // T010: Test JSON file parsing with valid config
 func TestConfigFile_ValidJSON(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -51,62 +54,32 @@ func TestConfigFile_ValidJSON(t *testing.T) {
 	}
 
 	// Verify global settings
-	if cfg.CheckInterval != 60*time.Second {
-		t.Errorf("expected checkInterval 60s, got %v", cfg.CheckInterval)
-	}
-	if cfg.ReadTimeout != 10*time.Second {
-		t.Errorf("expected readTimeout 10s, got %v", cfg.ReadTimeout)
-	}
-	if cfg.ShutdownTimeout != 45*time.Second {
-		t.Errorf("expected shutdownTimeout 45s, got %v", cfg.ShutdownTimeout)
-	}
-	if cfg.FailureThreshold != 5 {
-		t.Errorf("expected failureThreshold 5, got %d", cfg.FailureThreshold)
-	}
-	if cfg.HTTPPort != 9090 {
-		t.Errorf("expected httpPort 9090, got %d", cfg.HTTPPort)
-	}
-	if cfg.LogLevel != "debug" {
-		t.Errorf("expected logLevel 'debug', got %q", cfg.LogLevel)
-	}
-	if cfg.LogFormat != "text" {
-		t.Errorf("expected logFormat 'text', got %q", cfg.LogFormat)
-	}
-	if cfg.CanaryFile != ".ready" {
-		t.Errorf("expected canaryFile '.ready', got %q", cfg.CanaryFile)
-	}
+	is.Equal(cfg.CheckInterval, 60*time.Second)   // checkInterval
+	is.Equal(cfg.ReadTimeout, 10*time.Second)     // readTimeout
+	is.Equal(cfg.ShutdownTimeout, 45*time.Second) // shutdownTimeout
+	is.Equal(cfg.FailureThreshold, 5)             // failureThreshold
+	is.Equal(cfg.HTTPPort, 9090)                  // httpPort
+	is.Equal(cfg.LogLevel, "debug")               // logLevel
+	is.Equal(cfg.LogFormat, "text")               // logFormat
+	is.Equal(cfg.CanaryFile, ".ready")            // canaryFile
 
 	// Verify mounts
-	if len(cfg.Mounts) != 2 {
-		t.Fatalf("expected 2 mounts, got %d", len(cfg.Mounts))
-	}
-	if cfg.Mounts[0].Name != "movies" {
-		t.Errorf("expected mount[0].name 'movies', got %q", cfg.Mounts[0].Name)
-	}
-	if cfg.Mounts[0].Path != "/mnt/movies" {
-		t.Errorf("expected mount[0].path '/mnt/movies', got %q", cfg.Mounts[0].Path)
-	}
-	if cfg.Mounts[0].CanaryFile != ".health-check" {
-		t.Errorf("expected mount[0].canaryFile '.health-check', got %q", cfg.Mounts[0].CanaryFile)
-	}
-	if cfg.Mounts[0].FailureThreshold != 3 {
-		t.Errorf("expected mount[0].failureThreshold 3, got %d", cfg.Mounts[0].FailureThreshold)
-	}
-	if cfg.Mounts[1].Name != "tv" {
-		t.Errorf("expected mount[1].name 'tv', got %q", cfg.Mounts[1].Name)
-	}
-	if cfg.Mounts[1].Path != "/mnt/tv" {
-		t.Errorf("expected mount[1].path '/mnt/tv', got %q", cfg.Mounts[1].Path)
-	}
+	is.Equal(len(cfg.Mounts), 2)                        // mount count
+	is.Equal(cfg.Mounts[0].Name, "movies")              // mount[0].name
+	is.Equal(cfg.Mounts[0].Path, "/mnt/movies")         // mount[0].path
+	is.Equal(cfg.Mounts[0].CanaryFile, ".health-check") // mount[0].canaryFile
+	is.Equal(cfg.Mounts[0].FailureThreshold, 3)         // mount[0].failureThreshold
+	is.Equal(cfg.Mounts[1].Name, "tv")                  // mount[1].name
+	is.Equal(cfg.Mounts[1].Path, "/mnt/tv")             // mount[1].path
 
 	// Verify ConfigFile is set
-	if cfg.ConfigFile != configPath {
-		t.Errorf("expected ConfigFile %q, got %q", configPath, cfg.ConfigFile)
-	}
+	is.Equal(cfg.ConfigFile, configPath) // ConfigFile
 }
 
 // T011: Test --config flag loads specified file
 func TestConfigFile_ExplicitPath(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "custom.json")
 
@@ -125,26 +98,24 @@ func TestConfigFile_ExplicitPath(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	if len(cfg.Mounts) != 1 {
-		t.Errorf("expected 1 mount, got %d", len(cfg.Mounts))
-	}
-	if cfg.ConfigFile != configPath {
-		t.Errorf("expected ConfigFile %q, got %q", configPath, cfg.ConfigFile)
-	}
+	is.Equal(len(cfg.Mounts), 1)         // mount count
+	is.Equal(cfg.ConfigFile, configPath) // ConfigFile
 }
 
 // T011 continued: Test explicit path that doesn't exist returns error
 func TestConfigFile_ExplicitPath_NotFound(t *testing.T) {
+	is := is.New(t)
+
 	cfg := config.DefaultConfig()
 	err := cfg.LoadFromFileForTesting("/nonexistent/config.json")
 
-	if err == nil {
-		t.Error("expected error for non-existent explicit config file")
-	}
+	is.True(err != nil) // non-existent explicit config file should error
 }
 
 // T012: Test ./config.json default location discovery
 func TestConfigFile_DefaultLocation(t *testing.T) {
+	is := is.New(t)
+
 	// Save current directory and restore after test
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -175,16 +146,14 @@ func TestConfigFile_DefaultLocation(t *testing.T) {
 		t.Fatalf("failed to load default config: %v", err)
 	}
 
-	if len(cfg.Mounts) != 1 {
-		t.Errorf("expected 1 mount from default config, got %d", len(cfg.Mounts))
-	}
-	if cfg.Mounts[0].Name != "default-test" {
-		t.Errorf("expected mount name 'default-test', got %q", cfg.Mounts[0].Name)
-	}
+	is.Equal(len(cfg.Mounts), 1)                 // mount count from default config
+	is.Equal(cfg.Mounts[0].Name, "default-test") // mount name
 }
 
 // T012 continued: Test missing default config.json is silently ignored
 func TestConfigFile_DefaultLocation_NotFound(t *testing.T) {
+	is := is.New(t)
+
 	// Save current directory and restore after test
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -200,39 +169,33 @@ func TestConfigFile_DefaultLocation_NotFound(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	// This should NOT return an error - missing default is silently ignored
-	if err := cfg.LoadFromFileForTesting(""); err != nil {
-		t.Errorf("expected no error for missing default config, got: %v", err)
-	}
+	is.NoErr(cfg.LoadFromFileForTesting("")) // missing default config should not error
 
 	// Config should still have defaults
-	if cfg.CheckInterval != 30*time.Second {
-		t.Errorf("expected default checkInterval 30s, got %v", cfg.CheckInterval)
-	}
+	is.Equal(cfg.CheckInterval, 30*time.Second) // default checkInterval
 }
 
 // T013: Test backwards compatibility - no config file uses env vars
 func TestConfigFile_BackwardsCompatibility(t *testing.T) {
+	is := is.New(t)
+
 	// This test verifies that the Config struct can still be used
 	// with MountPaths (legacy) when no config file is present
 	cfg := config.DefaultConfig()
 	cfg.MountPaths = []string{"/mnt/test1", "/mnt/test2"}
 
 	// Validation should pass with legacy MountPaths
-	if err := cfg.Validate(); err != nil {
-		t.Errorf("expected valid config with MountPaths, got error: %v", err)
-	}
+	is.NoErr(cfg.Validate()) // valid config with MountPaths
 
 	// Both Mounts (empty) and MountPaths should be acceptable
-	if len(cfg.Mounts) != 0 {
-		t.Errorf("expected empty Mounts array, got %d", len(cfg.Mounts))
-	}
-	if len(cfg.MountPaths) != 2 {
-		t.Errorf("expected 2 MountPaths, got %d", len(cfg.MountPaths))
-	}
+	is.Equal(len(cfg.Mounts), 0)     // empty Mounts array
+	is.Equal(len(cfg.MountPaths), 2) // MountPaths count
 }
 
 // T020: Test per-mount canary file override
 func TestConfigFile_PerMountCanaryOverride(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -261,18 +224,16 @@ func TestConfigFile_PerMountCanaryOverride(t *testing.T) {
 	}
 
 	// Mount with override should use custom canary file
-	if cfg.Mounts[0].CanaryFile != ".custom-health" {
-		t.Errorf("expected mount[0].canaryFile '.custom-health', got %q", cfg.Mounts[0].CanaryFile)
-	}
+	is.Equal(cfg.Mounts[0].CanaryFile, ".custom-health") // mount[0] custom canary
 
 	// Mount without override should inherit global canary file
-	if cfg.Mounts[1].CanaryFile != ".global-health" {
-		t.Errorf("expected mount[1].canaryFile '.global-health' (inherited), got %q", cfg.Mounts[1].CanaryFile)
-	}
+	is.Equal(cfg.Mounts[1].CanaryFile, ".global-health") // mount[1] inherited canary
 }
 
 // T021: Test per-mount failureThreshold override
 func TestConfigFile_PerMountThresholdOverride(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -301,18 +262,16 @@ func TestConfigFile_PerMountThresholdOverride(t *testing.T) {
 	}
 
 	// Mount with override should use custom threshold
-	if cfg.Mounts[0].FailureThreshold != 10 {
-		t.Errorf("expected mount[0].failureThreshold 10, got %d", cfg.Mounts[0].FailureThreshold)
-	}
+	is.Equal(cfg.Mounts[0].FailureThreshold, 10) // mount[0] custom threshold
 
 	// Mount without override should inherit global threshold
-	if cfg.Mounts[1].FailureThreshold != 5 {
-		t.Errorf("expected mount[1].failureThreshold 5 (inherited), got %d", cfg.Mounts[1].FailureThreshold)
-	}
+	is.Equal(cfg.Mounts[1].FailureThreshold, 5) // mount[1] inherited threshold
 }
 
 // T022: Test default inheritance when per-mount values not specified
 func TestConfigFile_DefaultInheritance(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -333,18 +292,16 @@ func TestConfigFile_DefaultInheritance(t *testing.T) {
 	}
 
 	// Mount should inherit default canary file
-	if cfg.Mounts[0].CanaryFile != ".health-check" {
-		t.Errorf("expected mount canaryFile '.health-check' (default), got %q", cfg.Mounts[0].CanaryFile)
-	}
+	is.Equal(cfg.Mounts[0].CanaryFile, ".health-check") // default canaryFile
 
 	// Mount should inherit default threshold
-	if cfg.Mounts[0].FailureThreshold != 3 {
-		t.Errorf("expected mount failureThreshold 3 (default), got %d", cfg.Mounts[0].FailureThreshold)
-	}
+	is.Equal(cfg.Mounts[0].FailureThreshold, 3) // default failureThreshold
 }
 
 // T029: Test invalid JSON syntax error message
 func TestConfigFile_InvalidJSONSyntax(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -362,13 +319,13 @@ func TestConfigFile_InvalidJSONSyntax(t *testing.T) {
 	cfg := config.DefaultConfig()
 	err := cfg.LoadFromFileForTesting(configPath)
 
-	if err == nil {
-		t.Error("expected error for invalid JSON syntax")
-	}
+	is.True(err != nil) // invalid JSON syntax should error
 }
 
 // T030: Test missing required "path" field error
 func TestConfigFile_MissingRequiredPath(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -385,13 +342,13 @@ func TestConfigFile_MissingRequiredPath(t *testing.T) {
 	cfg := config.DefaultConfig()
 	err := cfg.LoadFromFileForTesting(configPath)
 
-	if err == nil {
-		t.Error("expected error for missing path field")
-	}
+	is.True(err != nil) // missing path field should error
 }
 
 // T031: Test invalid failureThreshold (negative) error
 func TestConfigFile_InvalidFailureThreshold(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -412,9 +369,7 @@ func TestConfigFile_InvalidFailureThreshold(t *testing.T) {
 	cfg := config.DefaultConfig()
 	err := cfg.LoadFromFileForTesting(configPath)
 
-	if err == nil {
-		t.Error("expected error for negative failureThreshold")
-	}
+	is.True(err != nil) // negative failureThreshold should error
 }
 
 // Test Duration unmarshaling
@@ -435,6 +390,8 @@ func TestDuration_UnmarshalJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			is := is.New(t)
+
 			if err := os.WriteFile(configPath, []byte(tt.json), 0644); err != nil {
 				t.Fatalf("failed to write config file: %v", err)
 			}
@@ -444,15 +401,15 @@ func TestDuration_UnmarshalJSON(t *testing.T) {
 				t.Fatalf("failed to load config: %v", err)
 			}
 
-			if cfg.CheckInterval != tt.expected {
-				t.Errorf("expected checkInterval %v, got %v", tt.expected, cfg.CheckInterval)
-			}
+			is.Equal(cfg.CheckInterval, tt.expected) // checkInterval
 		})
 	}
 }
 
 // Test Duration with invalid format
 func TestDuration_UnmarshalJSON_Invalid(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -469,24 +426,20 @@ func TestDuration_UnmarshalJSON_Invalid(t *testing.T) {
 	cfg := config.DefaultConfig()
 	err := cfg.LoadFromFileForTesting(configPath)
 
-	if err == nil {
-		t.Error("expected error for invalid duration format")
-	}
+	is.True(err != nil) // invalid duration format should error
 }
 
 // TestMountNameInStatusResponse verifies FR-008: mount name appears in health status snapshot.
 // This ensures the Mount.Name field is properly propagated to status responses.
 func TestMountNameInStatusResponse(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("test-movies", "/mnt/movies", ".health-check", 3)
 
 	snapshot := mount.Snapshot()
 
-	if snapshot.Name != "test-movies" {
-		t.Errorf("expected snapshot.Name 'test-movies', got %q", snapshot.Name)
-	}
-	if snapshot.Path != "/mnt/movies" {
-		t.Errorf("expected snapshot.Path '/mnt/movies', got %q", snapshot.Path)
-	}
+	is.Equal(snapshot.Name, "test-movies") // snapshot.Name
+	is.Equal(snapshot.Path, "/mnt/movies") // snapshot.Path
 }
 
 // =============================================================================
@@ -496,6 +449,8 @@ func TestMountNameInStatusResponse(t *testing.T) {
 // TestConfigFile_FileSizeLimit verifies that config files larger than 1MB are rejected.
 // This prevents DoS attacks via excessively large config files.
 func TestConfigFile_FileSizeLimit(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -511,18 +466,16 @@ func TestConfigFile_FileSizeLimit(t *testing.T) {
 	cfg := config.DefaultConfig()
 	err := cfg.LoadFromFileForTesting(configPath)
 
-	if err == nil {
-		t.Error("expected error for config file exceeding 1MB size limit")
-	}
+	is.True(err != nil) // config file exceeding 1MB should error
 
 	// Verify the error message mentions the size limit
-	if err != nil && !strings.Contains(err.Error(), "exceeds maximum size") {
-		t.Errorf("expected error to mention size limit, got: %v", err)
-	}
+	is.True(err != nil && strings.Contains(err.Error(), "exceeds maximum size")) // error should mention size limit
 }
 
 // TestConfigFile_FileSizeLimit_JustUnder verifies that config files just under 1MB are accepted.
 func TestConfigFile_FileSizeLimit_JustUnder(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -540,14 +493,14 @@ func TestConfigFile_FileSizeLimit_JustUnder(t *testing.T) {
 	cfg := config.DefaultConfig()
 	err := cfg.LoadFromFileForTesting(configPath)
 
-	if err != nil {
-		t.Errorf("expected no error for config file under 1MB, got: %v", err)
-	}
+	is.NoErr(err) // config file under 1MB should not error
 }
 
 // TestConfigFile_FileSizeLimit_ExactlyOneMB verifies that config files of exactly 1MB are accepted.
 // This is a boundary test - the limit is > 1MB, so exactly 1MB should be valid.
 func TestConfigFile_FileSizeLimit_ExactlyOneMB(t *testing.T) {
+	is := is.New(t)
+
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 
@@ -565,9 +518,7 @@ func TestConfigFile_FileSizeLimit_ExactlyOneMB(t *testing.T) {
 	}
 
 	content := prefix + string(padding) + suffix
-	if len(content) != targetSize {
-		t.Fatalf("expected content size %d, got %d", targetSize, len(content))
-	}
+	is.Equal(len(content), targetSize) // verify content size
 
 	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -576,7 +527,5 @@ func TestConfigFile_FileSizeLimit_ExactlyOneMB(t *testing.T) {
 	cfg := config.DefaultConfig()
 	err := cfg.LoadFromFileForTesting(configPath)
 
-	if err != nil {
-		t.Errorf("expected no error for config file of exactly 1MB, got: %v", err)
-	}
+	is.NoErr(err) // config file of exactly 1MB should not error
 }

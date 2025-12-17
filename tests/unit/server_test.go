@@ -11,6 +11,7 @@ import (
 
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
 	"github.com/cscheib/debrid-mount-monitor/internal/server"
+	"github.com/matryer/is"
 )
 
 // testLogger returns a silent logger for testing.
@@ -20,6 +21,8 @@ func testLogger() *slog.Logger {
 
 // TestLivenessEndpoint_HealthyMount tests liveness returns 200 for healthy mounts.
 func TestLivenessEndpoint_HealthyMount(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	// Make mount healthy
 	result := &health.CheckResult{
@@ -38,31 +41,21 @@ func TestLivenessEndpoint_HealthyMount(t *testing.T) {
 
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusOK) // status should be 200
 
 	var response map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	is.NoErr(json.Unmarshal(rec.Body.Bytes(), &response)) // should parse response
 
-	if response["status"] != "healthy" {
-		t.Errorf("expected status 'healthy', got %q", response["status"])
-	}
-
-	// Verify OpenAPI-compliant response has timestamp and mounts
-	if _, ok := response["timestamp"]; !ok {
-		t.Error("response missing 'timestamp' field")
-	}
-	if _, ok := response["mounts"]; !ok {
-		t.Error("response missing 'mounts' field")
-	}
+	is.Equal(response["status"], "healthy") // status should be healthy
+	is.True(response["timestamp"] != nil)   // should have timestamp
+	is.True(response["mounts"] != nil)      // should have mounts
 }
 
 // TestLivenessEndpoint_DegradedMount tests liveness returns 200 for degraded mounts.
 // Per spec: degraded (within failure threshold) should NOT trigger liveness failure.
 func TestLivenessEndpoint_DegradedMount(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -75,9 +68,7 @@ func TestLivenessEndpoint_DegradedMount(t *testing.T) {
 	}
 	mount.UpdateState(result, failureThreshold)
 
-	if mount.GetStatus() != health.StatusDegraded {
-		t.Fatalf("expected mount to be degraded, got %v", mount.GetStatus())
-	}
+	is.Equal(mount.GetStatus(), health.StatusDegraded) // mount should be degraded
 
 	srv := server.New([]*health.Mount{mount}, 0, testLogger())
 	handler := createServerHandler(srv)
@@ -88,14 +79,14 @@ func TestLivenessEndpoint_DegradedMount(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	// Degraded mounts should return 200 (only UNHEALTHY triggers 503)
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected status 200 for degraded mount, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusOK) // degraded mount should return 200
 }
 
 // TestLivenessEndpoint_UnhealthyMount tests liveness returns 503 for unhealthy mounts.
 // Per spec: liveness returns 503 when mount is UNHEALTHY (past failure threshold).
 func TestLivenessEndpoint_UnhealthyMount(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -110,9 +101,7 @@ func TestLivenessEndpoint_UnhealthyMount(t *testing.T) {
 		mount.UpdateState(result, failureThreshold)
 	}
 
-	if mount.GetStatus() != health.StatusUnhealthy {
-		t.Fatalf("expected mount to be unhealthy, got %v", mount.GetStatus())
-	}
+	is.Equal(mount.GetStatus(), health.StatusUnhealthy) // mount should be unhealthy
 
 	srv := server.New([]*health.Mount{mount}, 0, testLogger())
 	handler := createServerHandler(srv)
@@ -123,29 +112,23 @@ func TestLivenessEndpoint_UnhealthyMount(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	// Unhealthy mounts should trigger 503
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Errorf("expected status 503 for unhealthy mount, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusServiceUnavailable) // unhealthy mount should return 503
 
 	var response map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	is.NoErr(json.Unmarshal(rec.Body.Bytes(), &response)) // should parse response
 
-	if response["status"] != "unhealthy" {
-		t.Errorf("expected status 'unhealthy', got %q", response["status"])
-	}
+	is.Equal(response["status"], "unhealthy") // status should be unhealthy
 }
 
 // TestLivenessEndpoint_UnknownMount tests liveness returns 200 for unknown mounts.
 // Per spec: unknown (no check yet) should NOT trigger liveness failure.
 func TestLivenessEndpoint_UnknownMount(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	// Mount starts in UNKNOWN state (no checks performed)
 
-	if mount.GetStatus() != health.StatusUnknown {
-		t.Fatalf("expected mount to be unknown, got %v", mount.GetStatus())
-	}
+	is.Equal(mount.GetStatus(), health.StatusUnknown) // mount should be unknown
 
 	srv := server.New([]*health.Mount{mount}, 0, testLogger())
 	handler := createServerHandler(srv)
@@ -156,13 +139,13 @@ func TestLivenessEndpoint_UnknownMount(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	// Unknown mounts should return 200 (grace period)
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected status 200 for unknown mount, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusOK) // unknown mount should return 200
 }
 
 // TestReadinessEndpoint_AllHealthy tests readiness returns 200 when all mounts are healthy.
 func TestReadinessEndpoint_AllHealthy(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	// Simulate healthy state
 	result := &health.CheckResult{
@@ -181,22 +164,18 @@ func TestReadinessEndpoint_AllHealthy(t *testing.T) {
 
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusOK) // status should be 200
 
 	var response map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	is.NoErr(json.Unmarshal(rec.Body.Bytes(), &response)) // should parse response
 
-	if response["status"] != "healthy" {
-		t.Errorf("expected status 'healthy', got %q", response["status"])
-	}
+	is.Equal(response["status"], "healthy") // status should be healthy
 }
 
 // TestReadinessEndpoint_UnhealthyMount tests readiness returns 503 when any mount is unhealthy.
 func TestReadinessEndpoint_UnhealthyMount(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -219,23 +198,19 @@ func TestReadinessEndpoint_UnhealthyMount(t *testing.T) {
 
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Errorf("expected status 503, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusServiceUnavailable) // status should be 503
 
 	var response map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	is.NoErr(json.Unmarshal(rec.Body.Bytes(), &response)) // should parse response
 
-	if response["status"] != "unhealthy" {
-		t.Errorf("expected status 'unhealthy', got %q", response["status"])
-	}
+	is.Equal(response["status"], "unhealthy") // status should be unhealthy
 }
 
 // TestReadinessEndpoint_DegradedMount tests readiness returns 503 for degraded mounts.
 // Per spec: readiness requires HEALTHY state - degraded triggers 503.
 func TestReadinessEndpoint_DegradedMount(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	failureThreshold := 3
 
@@ -248,9 +223,7 @@ func TestReadinessEndpoint_DegradedMount(t *testing.T) {
 	}
 	mount.UpdateState(result, failureThreshold)
 
-	if mount.GetStatus() != health.StatusDegraded {
-		t.Fatalf("expected mount to be degraded, got %v", mount.GetStatus())
-	}
+	is.Equal(mount.GetStatus(), health.StatusDegraded) // mount should be degraded
 
 	srv := server.New([]*health.Mount{mount}, 0, testLogger())
 	handler := createServerHandler(srv)
@@ -261,20 +234,18 @@ func TestReadinessEndpoint_DegradedMount(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	// Per spec: DEGRADED should return 503 for readiness
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Errorf("expected status 503 for degraded mount, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusServiceUnavailable) // degraded mount should return 503
 }
 
 // TestReadinessEndpoint_UnknownMount tests readiness returns 503 for unknown mounts.
 // Per spec: readiness requires HEALTHY - unknown (no check yet) triggers 503.
 func TestReadinessEndpoint_UnknownMount(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 	// Mount starts in UNKNOWN state (no checks performed)
 
-	if mount.GetStatus() != health.StatusUnknown {
-		t.Fatalf("expected mount to be unknown, got %v", mount.GetStatus())
-	}
+	is.Equal(mount.GetStatus(), health.StatusUnknown) // mount should be unknown
 
 	srv := server.New([]*health.Mount{mount}, 0, testLogger())
 	handler := createServerHandler(srv)
@@ -285,13 +256,13 @@ func TestReadinessEndpoint_UnknownMount(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	// Per spec: UNKNOWN should return 503 for readiness
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Errorf("expected status 503 for unknown mount, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusServiceUnavailable) // unknown mount should return 503
 }
 
 // TestStatusEndpoint_DetailedInfo tests the status endpoint returns detailed mount info.
 func TestStatusEndpoint_DetailedInfo(t *testing.T) {
+	is := is.New(t)
+
 	mount1 := health.NewMount("", "/mnt/test1", ".health-check", 3)
 	mount2 := health.NewMount("", "/mnt/test2", ".health-check", 3)
 
@@ -321,9 +292,7 @@ func TestStatusEndpoint_DetailedInfo(t *testing.T) {
 
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusOK) // status should be 200
 
 	var response struct {
 		Status    string `json:"status"`
@@ -334,33 +303,20 @@ func TestStatusEndpoint_DetailedInfo(t *testing.T) {
 			FailureCount int    `json:"failure_count"`
 		} `json:"mounts"`
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	is.NoErr(json.Unmarshal(rec.Body.Bytes(), &response)) // should parse response
 
-	if response.Status != "healthy" {
-		t.Errorf("expected overall status 'healthy', got %q", response.Status)
-	}
-
-	if response.Timestamp == "" {
-		t.Error("response missing timestamp")
-	}
-
-	if len(response.Mounts) != 2 {
-		t.Fatalf("expected 2 mounts, got %d", len(response.Mounts))
-	}
-
-	if response.Mounts[0].Status != "healthy" {
-		t.Errorf("expected mount1 status 'healthy', got %q", response.Mounts[0].Status)
-	}
-	if response.Mounts[1].Status != "healthy" {
-		t.Errorf("expected mount2 status 'healthy', got %q", response.Mounts[1].Status)
-	}
+	is.Equal(response.Status, "healthy")           // overall status
+	is.True(response.Timestamp != "")              // should have timestamp
+	is.Equal(len(response.Mounts), 2)              // should have 2 mounts
+	is.Equal(response.Mounts[0].Status, "healthy") // mount1 status
+	is.Equal(response.Mounts[1].Status, "healthy") // mount2 status
 }
 
 // TestStatusEndpoint_DegradedMount tests status returns 503 when any mount is degraded.
 // Per spec: status endpoint uses same logic as readiness.
 func TestStatusEndpoint_DegradedMount(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
 
 	// Simulate degraded state (1 failure)
@@ -381,13 +337,13 @@ func TestStatusEndpoint_DegradedMount(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	// Per spec: degraded should return 503
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Errorf("expected status 503 for degraded mount, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusServiceUnavailable) // degraded should return 503
 }
 
 // TestStatusEndpoint_IncludesMountName tests that the status endpoint includes mount name when configured.
 func TestStatusEndpoint_IncludesMountName(t *testing.T) {
+	is := is.New(t)
+
 	// Create mount with a name
 	mountWithName := health.NewMount("debrid-movies", "/mnt/movies", ".health-check", 3)
 	// Create mount without a name
@@ -418,9 +374,7 @@ func TestStatusEndpoint_IncludesMountName(t *testing.T) {
 
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rec.Code)
-	}
+	is.Equal(rec.Code, http.StatusOK) // status should be 200
 
 	var response struct {
 		Status string `json:"status"`
@@ -430,29 +384,13 @@ func TestStatusEndpoint_IncludesMountName(t *testing.T) {
 			Status string `json:"status"`
 		} `json:"mounts"`
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	is.NoErr(json.Unmarshal(rec.Body.Bytes(), &response)) // should parse response
 
-	if len(response.Mounts) != 2 {
-		t.Fatalf("expected 2 mounts, got %d", len(response.Mounts))
-	}
-
-	// Verify mount with name has name in response
-	if response.Mounts[0].Name != "debrid-movies" {
-		t.Errorf("expected mount name 'debrid-movies', got %q", response.Mounts[0].Name)
-	}
-	if response.Mounts[0].Path != "/mnt/movies" {
-		t.Errorf("expected mount path '/mnt/movies', got %q", response.Mounts[0].Path)
-	}
-
-	// Verify mount without name has empty name (omitted in JSON due to omitempty)
-	if response.Mounts[1].Name != "" {
-		t.Errorf("expected empty mount name for unnamed mount, got %q", response.Mounts[1].Name)
-	}
-	if response.Mounts[1].Path != "/mnt/tv" {
-		t.Errorf("expected mount path '/mnt/tv', got %q", response.Mounts[1].Path)
-	}
+	is.Equal(len(response.Mounts), 2)                  // should have 2 mounts
+	is.Equal(response.Mounts[0].Name, "debrid-movies") // mount with name
+	is.Equal(response.Mounts[0].Path, "/mnt/movies")   // mount path
+	is.Equal(response.Mounts[1].Name, "")              // mount without name
+	is.Equal(response.Mounts[1].Path, "/mnt/tv")       // mount path
 }
 
 // TestEndpoints_MethodNotAllowed tests that non-GET methods return 405.
@@ -467,14 +405,14 @@ func TestEndpoints_MethodNotAllowed(t *testing.T) {
 	for _, endpoint := range endpoints {
 		for _, method := range methods {
 			t.Run(method+"_"+endpoint, func(t *testing.T) {
+				is := is.New(t)
+
 				req := httptest.NewRequest(method, endpoint, nil)
 				rec := httptest.NewRecorder()
 
 				handler.ServeHTTP(rec, req)
 
-				if rec.Code != http.StatusMethodNotAllowed {
-					t.Errorf("expected status 405 for %s %s, got %d", method, endpoint, rec.Code)
-				}
+				is.Equal(rec.Code, http.StatusMethodNotAllowed) // should return 405
 			})
 		}
 	}

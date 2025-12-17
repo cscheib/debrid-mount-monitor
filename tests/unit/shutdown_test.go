@@ -12,9 +12,12 @@ import (
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
 	"github.com/cscheib/debrid-mount-monitor/internal/monitor"
 	"github.com/cscheib/debrid-mount-monitor/internal/server"
+	"github.com/matryer/is"
 )
 
 func TestGracefulShutdown_ServerStops(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/tmp", ".nonexistent", 3)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
@@ -32,9 +35,7 @@ func TestGracefulShutdown_ServerStops(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		t.Errorf("shutdown returned error: %v", err)
-	}
+	is.NoErr(srv.Shutdown(ctx)) // shutdown should succeed
 }
 
 func TestGracefulShutdown_MonitorStops(t *testing.T) {
@@ -75,6 +76,8 @@ func TestGracefulShutdown_MonitorStops(t *testing.T) {
 }
 
 func TestGracefulShutdown_InFlightRequests(t *testing.T) {
+	is := is.New(t)
+
 	mount := health.NewMount("", "/tmp", ".nonexistent", 3)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
@@ -93,22 +96,16 @@ func TestGracefulShutdown_InFlightRequests(t *testing.T) {
 		t.Logf("warning: could not verify server is running: %v", err)
 	} else {
 		resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("expected status 200, got %d", resp.StatusCode)
-		}
+		is.Equal(resp.StatusCode, http.StatusOK) // server should respond with 200
 	}
 
 	// Shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		t.Errorf("shutdown returned error: %v", err)
-	}
+	is.NoErr(srv.Shutdown(ctx)) // shutdown should succeed
 
 	// Verify server is stopped
 	_, err = http.Get("http://localhost:18081/healthz/live")
-	if err == nil {
-		t.Error("expected connection error after shutdown")
-	}
+	is.True(err != nil) // connection should fail after shutdown
 }
