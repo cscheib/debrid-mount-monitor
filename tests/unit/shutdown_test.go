@@ -22,7 +22,7 @@ func TestGracefulShutdown_ServerStops(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	// Use a high port to avoid conflicts
-	srv := server.New([]*health.Mount{mount}, 18082, logger)
+	srv := server.New([]*health.Mount{mount}, 18082, "test", logger)
 
 	if err := srv.Start(); err != nil {
 		t.Fatalf("failed to start server: %v", err)
@@ -81,7 +81,7 @@ func TestGracefulShutdown_InFlightRequests(t *testing.T) {
 	mount := health.NewMount("", "/tmp", ".nonexistent", 3)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	srv := server.New([]*health.Mount{mount}, 18081, logger)
+	srv := server.New([]*health.Mount{mount}, 18081, "test", logger)
 
 	if err := srv.Start(); err != nil {
 		t.Fatalf("failed to start server: %v", err)

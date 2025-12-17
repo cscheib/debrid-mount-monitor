@@ -33,7 +33,7 @@ func TestLivenessEndpoint_HealthyMount(t *testing.T) {
 	}
 	mount.UpdateState(result, 3)
 
-	srv := server.New([]*health.Mount{mount}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/live", nil)
@@ -70,7 +70,7 @@ func TestLivenessEndpoint_DegradedMount(t *testing.T) {
 
 	is.Equal(mount.GetStatus(), health.StatusDegraded) // mount should be degraded
 
-	srv := server.New([]*health.Mount{mount}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/live", nil)
@@ -103,7 +103,7 @@ func TestLivenessEndpoint_UnhealthyMount(t *testing.T) {
 
 	is.Equal(mount.GetStatus(), health.StatusUnhealthy) // mount should be unhealthy
 
-	srv := server.New([]*health.Mount{mount}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/live", nil)
@@ -130,7 +130,7 @@ func TestLivenessEndpoint_UnknownMount(t *testing.T) {
 
 	is.Equal(mount.GetStatus(), health.StatusUnknown) // mount should be unknown
 
-	srv := server.New([]*health.Mount{mount}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/live", nil)
@@ -156,7 +156,7 @@ func TestReadinessEndpoint_AllHealthy(t *testing.T) {
 	}
 	mount.UpdateState(result, 3)
 
-	srv := server.New([]*health.Mount{mount}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/ready", nil)
@@ -190,7 +190,7 @@ func TestReadinessEndpoint_UnhealthyMount(t *testing.T) {
 		mount.UpdateState(result, failureThreshold)
 	}
 
-	srv := server.New([]*health.Mount{mount}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/ready", nil)
@@ -225,7 +225,7 @@ func TestReadinessEndpoint_DegradedMount(t *testing.T) {
 
 	is.Equal(mount.GetStatus(), health.StatusDegraded) // mount should be degraded
 
-	srv := server.New([]*health.Mount{mount}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/ready", nil)
@@ -247,7 +247,7 @@ func TestReadinessEndpoint_UnknownMount(t *testing.T) {
 
 	is.Equal(mount.GetStatus(), health.StatusUnknown) // mount should be unknown
 
-	srv := server.New([]*health.Mount{mount}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/ready", nil)
@@ -284,7 +284,7 @@ func TestStatusEndpoint_DetailedInfo(t *testing.T) {
 	}
 	mount2.UpdateState(result2, 3)
 
-	srv := server.New([]*health.Mount{mount1, mount2}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount1, mount2}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/status", nil)
@@ -328,7 +328,7 @@ func TestStatusEndpoint_DegradedMount(t *testing.T) {
 	}
 	mount.UpdateState(result, 3)
 
-	srv := server.New([]*health.Mount{mount}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/status", nil)
@@ -366,7 +366,7 @@ func TestStatusEndpoint_IncludesMountName(t *testing.T) {
 	}
 	mountWithoutName.UpdateState(result2, 3)
 
-	srv := server.New([]*health.Mount{mountWithName, mountWithoutName}, 0, testLogger())
+	srv := server.New([]*health.Mount{mountWithName, mountWithoutName}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz/status", nil)
@@ -396,7 +396,7 @@ func TestStatusEndpoint_IncludesMountName(t *testing.T) {
 // TestEndpoints_MethodNotAllowed tests that non-GET methods return 405.
 func TestEndpoints_MethodNotAllowed(t *testing.T) {
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
-	srv := server.New([]*health.Mount{mount}, 0, testLogger())
+	srv := server.New([]*health.Mount{mount}, 0, "test", testLogger())
 	handler := createServerHandler(srv)
 
 	endpoints := []string{"/healthz/live", "/healthz/ready", "/healthz/status"}

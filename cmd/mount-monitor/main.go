@@ -100,7 +100,7 @@ func main() {
 	mon.SetWatchdog(wd)
 
 	// Create HTTP server
-	srv := server.New(mounts, cfg.HTTPPort, logger)
+	srv := server.New(mounts, cfg.HTTPPort, Version, logger)
 
 	// Setup shutdown context
 	ctx, cancel := context.WithCancel(context.Background())
