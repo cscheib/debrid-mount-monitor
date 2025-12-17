@@ -32,6 +32,7 @@ type Monitor struct {
 	logger           *slog.Logger
 	wg               sync.WaitGroup
 	watchdog         WatchdogNotifier
+	rng              *rand.Rand // Per-instance random source for jitter (avoids global rand thread-safety issues)
 }
 
 // New creates a new Monitor instance.
@@ -42,6 +43,7 @@ func New(mounts []*health.Mount, checker *health.Checker, interval time.Duration
 		interval:         interval,
 		failureThreshold: failureThreshold,
 		logger:           logger,
+		rng:              rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
@@ -87,7 +89,8 @@ func (m *Monitor) intervalWithJitter() time.Duration {
 	// Calculate jitter range: ±jitterFactor of the interval
 	jitterRange := float64(m.interval) * jitterFactor
 	// Generate random offset in range [-jitterRange, +jitterRange]
-	jitter := (rand.Float64()*2 - 1) * jitterRange
+	// Uses per-instance rng to avoid global rand thread-safety issues
+	jitter := (m.rng.Float64()*2 - 1) * jitterRange
 	return m.interval + time.Duration(jitter)
 }
 
