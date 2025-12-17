@@ -19,10 +19,10 @@
 
 **Purpose**: Create the release workflow file with triggers and permissions
 
-- [ ] T001 Create workflow file with name and trigger configuration in `.github/workflows/release.yml`
-- [ ] T002 Add workflow_dispatch input for manual releases in `.github/workflows/release.yml`
-- [ ] T003 Configure permissions (contents: write, packages: write) in `.github/workflows/release.yml`
-- [ ] T004 Define environment variables (GO_VERSION, REGISTRY, IMAGE_NAME) in `.github/workflows/release.yml`
+- [x] T001 Create workflow file with name and trigger configuration in `.github/workflows/release.yml`
+- [x] T002 Add workflow_dispatch input for manual releases in `.github/workflows/release.yml`
+- [x] T003 Configure permissions (contents: write, packages: write) in `.github/workflows/release.yml`
+- [x] T004 Define environment variables (GO_VERSION, REGISTRY, IMAGE_NAME) in `.github/workflows/release.yml`
 
 **Checkpoint**: Workflow file exists with proper triggers and permissions
 
@@ -34,8 +34,8 @@
 
 **⚠️ CRITICAL**: This job must pass before any artifacts are created
 
-- [ ] T005 Implement `test` job with Go setup and test execution in `.github/workflows/release.yml`
-- [ ] T006 Add race detection flag to test command in `.github/workflows/release.yml`
+- [x] T005 Implement `test` job with Go setup and test execution in `.github/workflows/release.yml`
+- [x] T006 Add race detection flag to test command in `.github/workflows/release.yml`
 
 **Checkpoint**: Test gate job complete - pushing a tag runs tests first
 
@@ -49,13 +49,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Add version detection step (tag vs workflow_dispatch) in `.github/workflows/release.yml`
-- [ ] T008 [US1] Add pre-release detection regex (contains `-` after semver) in `.github/workflows/release.yml`
-- [ ] T009 [US1] Implement `build` job with matrix strategy (linux/amd64, linux/arm64) in `.github/workflows/release.yml`
-- [ ] T010 [US1] Add version injection via LDFLAGS in build job in `.github/workflows/release.yml`
-- [ ] T011 [US1] Configure CGO_ENABLED=0 for static linking in `.github/workflows/release.yml`
-- [ ] T012 [US1] Add artifact upload step for built binaries in `.github/workflows/release.yml`
-- [ ] T013 [US1] Add `needs: test` dependency to build job in `.github/workflows/release.yml`
+- [x] T007 [US1] Add version detection step (tag vs workflow_dispatch) in `.github/workflows/release.yml`
+- [x] T008 [US1] Add pre-release detection regex (contains `-` after semver) in `.github/workflows/release.yml`
+- [x] T009 [US1] Implement `build` job with matrix strategy (linux/amd64, linux/arm64) in `.github/workflows/release.yml`
+- [x] T010 [US1] Add version injection via LDFLAGS in build job in `.github/workflows/release.yml`
+- [x] T011 [US1] Configure CGO_ENABLED=0 for static linking in `.github/workflows/release.yml`
+- [x] T012 [US1] Add artifact upload step for built binaries in `.github/workflows/release.yml`
+- [x] T013 [US1] Add `needs: test` dependency to build job in `.github/workflows/release.yml`
 
 **Checkpoint**: Tag push triggers workflow → tests run → binaries build for both architectures
 
@@ -69,13 +69,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Implement `verify` job to test binary with --help in `.github/workflows/release.yml`
-- [ ] T015 [US2] Add `needs: build` dependency to verify job in `.github/workflows/release.yml`
-- [ ] T016 [US2] Implement `release` job scaffold in `.github/workflows/release.yml`
-- [ ] T017 [US2] Add artifact download step in release job in `.github/workflows/release.yml`
-- [ ] T018 [US2] Add SHA256 checksum generation step in release job in `.github/workflows/release.yml`
-- [ ] T019 [US2] Add softprops/action-gh-release step with binary uploads in `.github/workflows/release.yml`
-- [ ] T020 [US2] Configure pre-release flag based on version detection in `.github/workflows/release.yml`
+- [x] T014 [US2] Implement `verify` job to test binary with --help in `.github/workflows/release.yml`
+- [x] T015 [US2] Add `needs: build` dependency to verify job in `.github/workflows/release.yml`
+- [x] T016 [US2] Implement `release` job scaffold in `.github/workflows/release.yml`
+- [x] T017 [US2] Add artifact download step in release job in `.github/workflows/release.yml`
+- [x] T018 [US2] Add SHA256 checksum generation step in release job in `.github/workflows/release.yml`
+- [x] T019 [US2] Add softprops/action-gh-release step with binary uploads in `.github/workflows/release.yml`
+- [x] T020 [US2] Configure pre-release flag based on version detection in `.github/workflows/release.yml`
 
 **Checkpoint**: GitHub Release created with binaries and checksums.txt
 
@@ -89,14 +89,14 @@
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] Implement `docker` job scaffold in `.github/workflows/release.yml`
-- [ ] T022 [US3] Add docker/setup-qemu-action for multi-arch in `.github/workflows/release.yml`
-- [ ] T023 [US3] Add docker/setup-buildx-action in `.github/workflows/release.yml`
-- [ ] T024 [US3] Add docker/login-action for ghcr.io authentication in `.github/workflows/release.yml`
-- [ ] T025 [US3] Add nick-fields/retry@v3 wrapper for Docker build/push in `.github/workflows/release.yml`
-- [ ] T026 [US3] Configure multi-platform build (linux/amd64,linux/arm64) in `.github/workflows/release.yml`
-- [ ] T027 [US3] Implement conditional `latest` tag (stable releases only) in `.github/workflows/release.yml`
-- [ ] T028 [US3] Add `needs: verify` dependency to docker job in `.github/workflows/release.yml`
+- [x] T021 [US3] Implement `docker` job scaffold in `.github/workflows/release.yml`
+- [x] T022 [US3] Add docker/setup-qemu-action for multi-arch in `.github/workflows/release.yml`
+- [x] T023 [US3] Add docker/setup-buildx-action in `.github/workflows/release.yml`
+- [x] T024 [US3] Add docker/login-action for ghcr.io authentication in `.github/workflows/release.yml`
+- [x] T025 [US3] Add nick-fields/retry@v3 wrapper for Docker build/push in `.github/workflows/release.yml`
+- [x] T026 [US3] Configure multi-platform build (linux/amd64,linux/arm64) in `.github/workflows/release.yml`
+- [x] T027 [US3] Implement conditional `latest` tag (stable releases only) in `.github/workflows/release.yml`
+- [x] T028 [US3] Add `needs: verify` dependency to docker job in `.github/workflows/release.yml`
 
 **Checkpoint**: Docker images pushed to ghcr.io with version tag (and `latest` for stable)
 
@@ -110,8 +110,8 @@
 
 ### Implementation for User Story 4
 
-- [ ] T029 [US4] Enable `generate_release_notes: true` in softprops/action-gh-release in `.github/workflows/release.yml`
-- [ ] T030 [US4] Add `needs: docker` dependency to release job (final ordering) in `.github/workflows/release.yml`
+- [x] T029 [US4] Enable `generate_release_notes: true` in softprops/action-gh-release in `.github/workflows/release.yml`
+- [x] T030 [US4] Add `needs: docker` dependency to release job (final ordering) in `.github/workflows/release.yml`
 
 **Checkpoint**: Release notes auto-generated from commits since last tag
 
@@ -121,9 +121,9 @@
 
 **Purpose**: Final validation and documentation
 
-- [ ] T031 [P] Review workflow against contracts/release-workflow.yaml for completeness
-- [ ] T032 [P] Validate all FR requirements (FR-001 through FR-016) are implemented
-- [ ] T033 [P] Update quickstart.md with actual repository name if needed in `specs/008-automate-releases/quickstart.md`
+- [x] T031 [P] Review workflow against contracts/release-workflow.yaml for completeness
+- [x] T032 [P] Validate all FR requirements (FR-001 through FR-016) are implemented
+- [x] T033 [P] Update quickstart.md with actual repository name if needed in `specs/008-automate-releases/quickstart.md`
 - [ ] T034 Test workflow by pushing test tag to fork (manual validation)
 - [ ] T035 Remove test release/tag after validation
 
