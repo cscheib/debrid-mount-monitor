@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
@@ -19,7 +18,6 @@ type Server struct {
 	port   int
 	logger *slog.Logger
 	server *http.Server
-	mu     sync.RWMutex
 }
 
 // New creates a new Server instance.
