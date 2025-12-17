@@ -94,12 +94,7 @@ mount-monitor --config=config.json
 
 **Migration**:
 
-For simple setups, use CLI flags:
-```bash
-mount-monitor --mount-paths=/mnt/debrid --failure-threshold=3
-```
-
-For complex setups, create a `config.json` file:
+Create a `config.json` file (or use the default `./config.json`):
 ```json
 {
   "failureThreshold": 3,

@@ -1,4 +1,4 @@
-// Package config handles configuration parsing from files, environment variables, and flags.
+// Package config handles configuration parsing from JSON files and CLI flags.
 package config
 
 import (
@@ -166,7 +166,7 @@ func validateFileConfig(fc *FileConfig) error {
 }
 
 // applyFileConfig applies values from FileConfig to the runtime Config.
-// Values from the file override defaults but will be overridden by env vars/flags.
+// Values from the file override defaults but will be overridden by CLI flags.
 func applyFileConfig(c *Config, fc *FileConfig) {
 	// Apply global settings if specified
 	if fc.CheckInterval > 0 {
