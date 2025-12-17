@@ -39,6 +39,7 @@ func New(mounts []*health.Mount, port int, logger *slog.Logger) *Server {
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	return s
