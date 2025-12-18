@@ -144,6 +144,14 @@ jobs:
             echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT
           fi
 
+      # Checkout first (sparse checkout only gets Dockerfile.release)
+      - name: Checkout Dockerfile.release
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            Dockerfile.release
+          sparse-checkout-cone-mode: false
+
       # Download pre-built binaries from build job
       - name: Download amd64 binary
         uses: actions/download-artifact@v6
@@ -156,14 +164,6 @@ jobs:
         with:
           name: mount-monitor-linux-arm64
           path: ./docker-context/
-
-      # Checkout only needed for Dockerfile.release
-      - name: Checkout Dockerfile.release
-        uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            Dockerfile.release
-          sparse-checkout-cone-mode: false
 
       - name: Copy Dockerfile to context
         run: cp Dockerfile.release ./docker-context/
