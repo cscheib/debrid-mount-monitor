@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'deploy/kind/**'
-      - 'Dockerfile'
+      - 'Dockerfile.release'
       - 'cmd/**'
       - 'internal/**'
       - 'scripts/kind-e2e-test.sh'
@@ -14,7 +14,7 @@ on:
     branches: [main]
     paths:
       - 'deploy/kind/**'
-      - 'Dockerfile'
+      - 'Dockerfile.release'
       - 'cmd/**'
       - 'internal/**'
       - 'scripts/kind-e2e-test.sh'
@@ -46,8 +46,20 @@ jobs:
           cluster_name: debrid-mount-monitor-ci
           wait: 120s
 
-      - name: Build Docker image
-        run: docker build -t mount-monitor:dev -f Dockerfile .
+      - name: Build binary
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          go build -ldflags="-s -w" -o mount-monitor-linux-amd64 ./cmd/mount-monitor
+
+      - name: Build Docker image from pre-built binary
+        run: |
+          mkdir -p docker-context
+          cp mount-monitor-linux-amd64 docker-context/
+          cp Dockerfile.release docker-context/
+          docker build -t mount-monitor:dev -f docker-context/Dockerfile.release docker-context/
 
       - name: Verify image was built
         run: docker image inspect mount-monitor:dev > /dev/null

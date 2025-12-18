@@ -15,6 +15,7 @@ Auto-generated from all feature plans. Last updated: 2025-12-14
 - N/A (config file is read-only input) (007-tech-debt-cleanup)
 - YAML (GitHub Actions workflow), Go 1.21+ (existing project) + GitHub Actions (actions/checkout@v6, actions/setup-go@v6, docker/build-push-action@v6, softprops/action-gh-release) (008-automate-releases)
 - N/A (CI/CD workflow only) (008-automate-releases)
+- YAML (GitHub Actions), Dockerfile + docker buildx, actions/download-artifact@v6, actions/checkout@v6 (sparse) (009-docker-prebuilt-binaries)
 
 - Go 1.21+ (required for log/slog structured logging) + Standard library only (net/http, os/signal, context, log/slog, encoding/json, time, sync) (001-mount-health-monitor)
 
@@ -34,9 +35,9 @@ tests/
 Go 1.21+ (required for log/slog structured logging): Follow standard conventions
 
 ## Recent Changes
+- 009-docker-prebuilt-binaries: Added YAML (GitHub Actions), Dockerfile + docker buildx, actions/download-artifact@v6, actions/checkout@v6 (sparse)
 - 008-automate-releases: Added YAML (GitHub Actions workflow), Go 1.21+ (existing project) + GitHub Actions (actions/checkout@v6, actions/setup-go@v6, docker/build-push-action@v6, softprops/action-gh-release)
 - 007-tech-debt-cleanup: Added Go 1.21+ (required for log/slog structured logging) + Standard library only (no external dependencies per constitution)
-- 006-dev-tooling-improvements: Added Go 1.21+ (existing project standard) + Standard library only (no external dependencies per constitution)
 
 
 <!-- MANUAL ADDITIONS START -->

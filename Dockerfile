@@ -1,3 +1,14 @@
+# Development Dockerfile - Compiles from Source
+# =============================================
+# This Dockerfile is for LOCAL DEVELOPMENT only. It compiles Go source code.
+#
+# For release builds, see: Dockerfile.release (uses pre-built binaries)
+# The release workflow uses Dockerfile.release to avoid redundant compilation.
+#
+# Usage:
+#   make docker          # Uses this Dockerfile
+#   make docker-debug    # Uses Dockerfile.debug
+
 # Build stage
 FROM golang:1.21-alpine AS builder
 

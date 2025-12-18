@@ -120,14 +120,13 @@ jobs:
   # FR-008: Push to ghcr.io with version tag
   # FR-009: Update latest tag only for stable releases
   # FR-016: Retry failed steps up to 2 times
+  # NEW: Uses pre-built binaries from build job (009-docker-prebuilt-binaries)
   # ============================================================
   docker:
     name: Docker Build & Push
     runs-on: ubuntu-latest
     needs: verify
     steps:
-      - uses: actions/checkout@v6
-
       - name: Determine version and pre-release status
         id: meta
         run: |
@@ -144,6 +143,30 @@ jobs:
           else
             echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT
           fi
+
+      # Checkout first (sparse checkout only gets Dockerfile.release)
+      - name: Checkout Dockerfile.release
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            Dockerfile.release
+          sparse-checkout-cone-mode: false
+
+      # Download pre-built binaries from build job
+      - name: Download amd64 binary
+        uses: actions/download-artifact@v6
+        with:
+          name: mount-monitor-linux-amd64
+          path: ./docker-context/
+
+      - name: Download arm64 binary
+        uses: actions/download-artifact@v6
+        with:
+          name: mount-monitor-linux-arm64
+          path: ./docker-context/
+
+      - name: Copy Dockerfile to context
+        run: cp Dockerfile.release ./docker-context/
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -171,12 +194,14 @@ jobs:
               TAGS="${TAGS},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
             fi
 
+            # Build from docker-context directory using Dockerfile.release
+            # No Go compilation - uses pre-built binaries with version embedded
             docker buildx build \
               --platform linux/amd64,linux/arm64 \
               --push \
               --tag ${TAGS} \
-              --file ./Dockerfile \
-              .
+              --file ./docker-context/Dockerfile.release \
+              ./docker-context/
 
   # ============================================================
   # Job 5: Create GitHub Release

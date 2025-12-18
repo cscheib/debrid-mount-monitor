@@ -1,0 +1,33 @@
+# Release Dockerfile - Uses Pre-built Binaries
+# =============================================
+# This Dockerfile is used by the release workflow to create Docker images
+# from pre-compiled binaries. It does NOT compile Go source code.
+#
+# For local development, use: make docker (which uses ./Dockerfile)
+#
+# Usage in CI:
+#   docker buildx build --platform linux/amd64,linux/arm64 \
+#     --file Dockerfile.release --push --tag ghcr.io/repo:version .
+#
+# Required context files:
+#   - mount-monitor-linux-amd64 (pre-built binary)
+#   - mount-monitor-linux-arm64 (pre-built binary)
+
+FROM scratch
+
+# Automatic build argument provided by docker buildx
+# Set to 'amd64' or 'arm64' based on --platform flag
+ARG TARGETARCH
+
+# Copy the pre-built binary for the target architecture
+# The binary name must match: mount-monitor-linux-{TARGETARCH}
+COPY mount-monitor-linux-${TARGETARCH} /mount-monitor
+
+# Health check port (same as production Dockerfile)
+EXPOSE 8080
+
+# Run as non-root user (numeric UID for scratch compatibility)
+# Same as production Dockerfile for consistency
+USER 65534
+
+ENTRYPOINT ["/mount-monitor"]
