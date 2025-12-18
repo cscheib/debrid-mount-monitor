@@ -2,6 +2,7 @@ package health_test
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,6 +40,7 @@ func TestHealthStatus_String(t *testing.T) {
 		{health.StatusHealthy, "healthy"},
 		{health.StatusDegraded, "degraded"},
 		{health.StatusUnhealthy, "unhealthy"},
+		{health.HealthStatus(99), "unknown"}, // invalid value defaults to unknown
 	}
 
 	for _, tt := range tests {
@@ -238,4 +240,123 @@ func TestMount_TransientFailure_NoRestart(t *testing.T) {
 
 	is.Equal(mount.GetStatus(), health.StatusHealthy) // should be healthy after recovery
 	is.Equal(mount.GetFailureCount(), 0)              // failure count should reset
+}
+
+// TestMount_ConcurrentAccess tests that Mount is safe for concurrent reads and writes.
+// This test uses the race detector (-race) to verify correctness.
+func TestMount_ConcurrentAccess(t *testing.T) {
+	is := is.New(t)
+
+	mount := health.NewMount("concurrent-test", "/mnt/test", ".health-check", 3)
+	failureThreshold := 3
+
+	var wg sync.WaitGroup
+	const goroutines = 10
+	const iterations = 100
+
+	// Writer goroutines - simulate monitor updating state
+	for i := 0; i < goroutines/2; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < iterations; j++ {
+				result := &health.CheckResult{
+					Mount:     mount,
+					Timestamp: time.Now(),
+					Success:   j%2 == 0, // Alternate success/failure
+					Duration:  time.Duration(j) * time.Millisecond,
+					Error:     nil,
+				}
+				if !result.Success {
+					result.Error = errors.New("test error")
+				}
+				mount.UpdateState(result, failureThreshold)
+			}
+		}(i)
+	}
+
+	// Reader goroutines - simulate server reading state for health endpoints
+	for i := 0; i < goroutines/2; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < iterations; j++ {
+				// Read operations that must be thread-safe
+				_ = mount.GetStatus()
+				_ = mount.GetFailureCount()
+				_ = mount.Snapshot()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify mount is in a valid state after concurrent access
+	status := mount.GetStatus()
+	is.True(status == health.StatusUnknown ||
+		status == health.StatusHealthy ||
+		status == health.StatusDegraded ||
+		status == health.StatusUnhealthy) // status should be valid
+
+	failureCount := mount.GetFailureCount()
+	is.True(failureCount >= 0 && failureCount <= failureThreshold) // failure count should be valid
+}
+
+// TestMount_GetName tests the GetName method returns the mount name.
+func TestMount_GetName(t *testing.T) {
+	is := is.New(t)
+
+	mount := health.NewMount("my-mount", "/mnt/test", ".health-check", 3)
+
+	is.Equal(mount.GetName(), "my-mount") // should return mount name
+}
+
+// TestMount_GetLastCheck tests the GetLastCheck method returns the last check timestamp.
+func TestMount_GetLastCheck(t *testing.T) {
+	is := is.New(t)
+
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
+
+	// Before any check, last check should be zero time
+	is.True(mount.GetLastCheck().IsZero()) // no check performed yet
+
+	// Perform a check
+	checkTime := time.Now()
+	result := &health.CheckResult{
+		Mount:     mount,
+		Timestamp: checkTime,
+		Success:   true,
+		Duration:  100 * time.Millisecond,
+	}
+	mount.UpdateState(result, 3)
+
+	// Last check should now be set
+	lastCheck := mount.GetLastCheck()
+	is.True(!lastCheck.IsZero())                        // last check should be set
+	is.True(lastCheck.Sub(checkTime) < time.Second)     // should be close to check time
+}
+
+// TestMount_GetLastError tests the GetLastError method returns the last error.
+func TestMount_GetLastError(t *testing.T) {
+	is := is.New(t)
+
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
+
+	// Before any failure, last error should be nil
+	is.True(mount.GetLastError() == nil) // no error yet
+
+	// Simulate a failure
+	result := &health.CheckResult{
+		Mount:     mount,
+		Timestamp: time.Now(),
+		Success:   false,
+		Duration:  100 * time.Millisecond,
+		Error:     errors.New("connection timeout"),
+	}
+	mount.UpdateState(result, 3)
+
+	// Last error should now be set
+	lastErr := mount.GetLastError()
+	is.True(lastErr != nil)                             // error should be set
+	is.Equal(lastErr.Error(), "connection timeout")     // error message should match
 }

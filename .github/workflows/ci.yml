@@ -39,6 +39,13 @@ jobs:
           fi
           echo "Coverage ${COVERAGE}% meets ${THRESHOLD}% threshold"
 
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-report
+          path: coverage.out
+          retention-days: 14
+
   build:
     name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-latest

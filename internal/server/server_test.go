@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
 	"github.com/cscheib/debrid-mount-monitor/internal/server"
 	"github.com/matryer/is"
+	"go.uber.org/goleak"
 )
 
 // testLogger returns a silent logger for testing.
@@ -21,6 +23,7 @@ func testLogger() *slog.Logger {
 
 // TestLivenessEndpoint_HealthyMount tests liveness returns 200 for healthy mounts.
 func TestLivenessEndpoint_HealthyMount(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	is := is.New(t)
 
 	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
@@ -261,6 +264,7 @@ func TestReadinessEndpoint_UnknownMount(t *testing.T) {
 
 // TestStatusEndpoint_DetailedInfo tests the status endpoint returns detailed mount info.
 func TestStatusEndpoint_DetailedInfo(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	is := is.New(t)
 
 	mount1 := health.NewMount("", "/mnt/test1", ".health-check", 3)
@@ -466,4 +470,28 @@ func TestVersionEndpoint_MethodNotAllowed(t *testing.T) {
 // Uses the server's Handler() method to get the internal mux for direct testing.
 func createServerHandler(srv *server.Server) http.Handler {
 	return srv.Handler()
+}
+
+// TestServer_StartAndShutdown tests the server lifecycle (Start/Shutdown).
+func TestServer_StartAndShutdown(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	is := is.New(t)
+
+	mount := health.NewMount("", "/mnt/test", ".health-check", 3)
+	// Use a high port number to avoid conflicts
+	srv := server.New([]*health.Mount{mount}, 18080, "test", testLogger())
+
+	// Start the server
+	err := srv.Start()
+	is.NoErr(err) // should start without error
+
+	// Give it a moment to start
+	time.Sleep(50 * time.Millisecond)
+
+	// Shutdown the server
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = srv.Shutdown(ctx)
+	is.NoErr(err) // should shutdown without error
 }

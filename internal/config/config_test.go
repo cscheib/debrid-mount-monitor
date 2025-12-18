@@ -195,6 +195,50 @@ func TestConfigValidation_AllLogFormats(t *testing.T) {
 	}
 }
 
+// TestConfigValidation_MountMissingPath tests mount without path
+func TestConfigValidation_MountMissingPath(t *testing.T) {
+	is := is.New(t)
+
+	cfg := config.DefaultConfig()
+	cfg.Mounts = []config.MountConfig{{Path: ""}} // Mount with no path
+
+	err := cfg.Validate()
+	is.True(err != nil) // mount without path should error
+}
+
+// TestConfigValidation_MountWithNameMissingPath tests named mount without path
+func TestConfigValidation_MountWithNameMissingPath(t *testing.T) {
+	is := is.New(t)
+
+	cfg := config.DefaultConfig()
+	cfg.Mounts = []config.MountConfig{{Name: "my-mount", Path: ""}} // Named mount with no path
+
+	err := cfg.Validate()
+	is.True(err != nil) // named mount without path should error
+}
+
+// TestConfigValidation_MountNegativeThreshold tests mount with negative failure threshold
+func TestConfigValidation_MountNegativeThreshold(t *testing.T) {
+	is := is.New(t)
+
+	cfg := config.DefaultConfig()
+	cfg.Mounts = []config.MountConfig{{Path: "/mnt/test", FailureThreshold: -1}}
+
+	err := cfg.Validate()
+	is.True(err != nil) // negative failure threshold should error
+}
+
+// TestConfigValidation_NamedMountNegativeThreshold tests named mount with negative failure threshold
+func TestConfigValidation_NamedMountNegativeThreshold(t *testing.T) {
+	is := is.New(t)
+
+	cfg := config.DefaultConfig()
+	cfg.Mounts = []config.MountConfig{{Name: "my-mount", Path: "/mnt/test", FailureThreshold: -1}}
+
+	err := cfg.Validate()
+	is.True(err != nil) // named mount with negative failure threshold should error
+}
+
 // T004: Test that InitContainerMode field exists and defaults to false
 func TestDefaultConfig_InitContainerMode(t *testing.T) {
 	is := is.New(t)
