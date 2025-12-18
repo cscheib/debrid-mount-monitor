@@ -218,14 +218,14 @@ func TestValidate_InitContainerMode_SkipsIrrelevant(t *testing.T) {
 		LogLevel:    "info",          // Valid - this is still checked
 		LogFormat:   "json",          // Valid - this is still checked
 		// These should be skipped in init-container mode:
-		CheckInterval:    0,                      // Invalid in normal mode
-		ShutdownTimeout:  0,                      // Invalid in normal mode
-		FailureThreshold: 0,                      // Invalid in normal mode
-		HTTPPort:         0,                      // Invalid in normal mode
+		CheckInterval:    0, // Invalid in normal mode
+		ShutdownTimeout:  0, // Invalid in normal mode
+		FailureThreshold: 0, // Invalid in normal mode
+		HTTPPort:         0, // Invalid in normal mode
 		Watchdog: config.WatchdogConfig{
-			MaxRetries:          0,  // Invalid in normal mode
-			RetryBackoffInitial: 0,  // Invalid in normal mode
-			RetryBackoffMax:     0,  // Invalid in normal mode
+			MaxRetries:          0, // Invalid in normal mode
+			RetryBackoffInitial: 0, // Invalid in normal mode
+			RetryBackoffMax:     0, // Invalid in normal mode
 		},
 	}
 

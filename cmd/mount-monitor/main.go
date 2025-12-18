@@ -265,10 +265,14 @@ func runInitMode(cfg *config.Config, logger *slog.Logger) int {
 			)
 		} else {
 			allHealthy = false
+			errorMsg := "unknown error"
+			if result.Error != nil {
+				errorMsg = result.Error.Error()
+			}
 			logger.Error("mount check failed",
 				"name", mount.Name,
 				"path", mount.Path,
-				"error", result.Error.Error(),
+				"error", errorMsg,
 				"duration", result.Duration.String(),
 			)
 		}
