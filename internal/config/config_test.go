@@ -194,3 +194,76 @@ func TestConfigValidation_AllLogFormats(t *testing.T) {
 		})
 	}
 }
+
+// T004: Test that InitContainerMode field exists and defaults to false
+func TestDefaultConfig_InitContainerMode(t *testing.T) {
+	is := is.New(t)
+	cfg := config.DefaultConfig()
+
+	is.Equal(cfg.InitContainerMode, false) // init-container mode defaults to false
+}
+
+// T005: Test that init-container mode skips irrelevant validations
+func TestValidate_InitContainerMode_SkipsIrrelevant(t *testing.T) {
+	is := is.New(t)
+
+	// Create a config with invalid values for fields that should be skipped
+	cfg := &config.Config{
+		InitContainerMode: true,
+		Mounts: []config.MountConfig{
+			{Path: "/mnt/test", CanaryFile: ".health-check"},
+		},
+		CanaryFile:  ".health-check",
+		ReadTimeout: 5 * time.Second, // Valid - this is still checked
+		LogLevel:    "info",          // Valid - this is still checked
+		LogFormat:   "json",          // Valid - this is still checked
+		// These should be skipped in init-container mode:
+		CheckInterval:    0,                      // Invalid in normal mode
+		ShutdownTimeout:  0,                      // Invalid in normal mode
+		FailureThreshold: 0,                      // Invalid in normal mode
+		HTTPPort:         0,                      // Invalid in normal mode
+		Watchdog: config.WatchdogConfig{
+			MaxRetries:          0,  // Invalid in normal mode
+			RetryBackoffInitial: 0,  // Invalid in normal mode
+			RetryBackoffMax:     0,  // Invalid in normal mode
+		},
+	}
+
+	err := cfg.Validate()
+	is.NoErr(err) // init-container mode should skip irrelevant validations
+}
+
+// Test that init-container mode still validates required fields
+func TestValidate_InitContainerMode_StillValidatesRequired(t *testing.T) {
+	is := is.New(t)
+
+	// Config with no mounts - should still fail in init-container mode
+	cfg := &config.Config{
+		InitContainerMode: true,
+		Mounts:            []config.MountConfig{},
+		ReadTimeout:       5 * time.Second,
+		LogLevel:          "info",
+		LogFormat:         "json",
+	}
+
+	err := cfg.Validate()
+	is.True(err != nil) // at least one mount is required even in init-container mode
+}
+
+// Test that init-container mode validates ReadTimeout (it's used for canary checks)
+func TestValidate_InitContainerMode_ValidatesReadTimeout(t *testing.T) {
+	is := is.New(t)
+
+	cfg := &config.Config{
+		InitContainerMode: true,
+		Mounts: []config.MountConfig{
+			{Path: "/mnt/test"},
+		},
+		ReadTimeout: 10 * time.Millisecond, // Too short - should fail
+		LogLevel:    "info",
+		LogFormat:   "json",
+	}
+
+	err := cfg.Validate()
+	is.True(err != nil) // read timeout validation should still apply
+}
