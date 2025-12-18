@@ -31,6 +31,11 @@ func main() {
 	logger := setupLogger(cfg.LogLevel, cfg.LogFormat)
 	slog.SetDefault(logger)
 
+	// Init-container mode: check mounts once and exit
+	if cfg.InitContainerMode {
+		os.Exit(runInitMode(cfg, logger))
+	}
+
 	// Log configuration source and settings (T037: verbose config logging)
 	configSource := "environment"
 	if cfg.ConfigFile != "" {
@@ -227,4 +232,56 @@ func (h *multiStreamHandler) WithGroup(name string) slog.Handler {
 		stdoutHandler: h.stdoutHandler.WithGroup(name),
 		stderrHandler: h.stderrHandler.WithGroup(name),
 	}
+}
+
+// runInitMode performs a one-shot health check of all configured mounts
+// and returns an exit code (0 = all healthy, 1 = any failures).
+func runInitMode(cfg *config.Config, logger *slog.Logger) int {
+	logger.Info("running in init-container mode",
+		"version", Version,
+		"mounts", len(cfg.Mounts),
+	)
+
+	// Create mounts from configuration
+	mounts := make([]*health.Mount, len(cfg.Mounts))
+	for i, mc := range cfg.Mounts {
+		mounts[i] = health.NewMount(mc.Name, mc.Path, mc.CanaryFile, mc.FailureThreshold)
+	}
+
+	// Create health checker
+	checker := health.NewChecker(cfg.ReadTimeout)
+
+	// Check all mounts sequentially
+	ctx := context.Background()
+	allHealthy := true
+
+	for _, mount := range mounts {
+		result := checker.Check(ctx, mount)
+		if result.Success {
+			logger.Info("mount check passed",
+				"name", mount.Name,
+				"path", mount.Path,
+				"duration", result.Duration.String(),
+			)
+		} else {
+			allHealthy = false
+			errorMsg := "unknown error"
+			if result.Error != nil {
+				errorMsg = result.Error.Error()
+			}
+			logger.Error("mount check failed",
+				"name", mount.Name,
+				"path", mount.Path,
+				"error", errorMsg,
+				"duration", result.Duration.String(),
+			)
+		}
+	}
+
+	if allHealthy {
+		logger.Info("all mount checks passed", "count", len(mounts))
+		return 0
+	}
+	logger.Error("one or more mount checks failed", "count", len(mounts))
+	return 1
 }

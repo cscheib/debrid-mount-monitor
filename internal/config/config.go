@@ -31,6 +31,9 @@ type Config struct {
 	// Config file tracking
 	ConfigFile string // Path to loaded config file ("" if none)
 
+	// Mode configuration
+	InitContainerMode bool // Run in init-container mode (check once and exit)
+
 	// Mount configuration
 	Mounts     []MountConfig // Per-mount configurations
 	CanaryFile string        // Default canary file for all mounts
@@ -88,6 +91,7 @@ func Load() (*Config, error) {
 	httpPort := flag.Int("http-port", 0, "Port for health endpoints")
 	logLevel := flag.String("log-level", "", "Log level: debug, info, warn, error")
 	logFormat := flag.String("log-format", "", "Log format: json, text")
+	initContainerMode := flag.Bool("init-container-mode", false, "Run in init-container mode (check mounts once and exit)")
 
 	flag.Parse()
 
@@ -105,6 +109,9 @@ func Load() (*Config, error) {
 	}
 	if *logFormat != "" {
 		cfg.LogFormat = *logFormat
+	}
+	if *initContainerMode {
+		cfg.InitContainerMode = true
 	}
 
 	// Validate configuration
@@ -142,28 +149,32 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	if c.CheckInterval < time.Second {
-		result = multierror.Append(result, fmt.Errorf("check interval must be >= 1 second"))
-	}
-
+	// ReadTimeout is always validated (used in init-container mode too)
 	if c.ReadTimeout < 100*time.Millisecond {
 		result = multierror.Append(result, fmt.Errorf("read timeout must be >= 100 milliseconds"))
 	}
 
-	if c.ReadTimeout >= c.CheckInterval {
-		result = multierror.Append(result, fmt.Errorf("read timeout must be less than check interval (otherwise health checks would overlap or never complete before the next check)"))
-	}
+	// Skip validations irrelevant to init-container mode
+	if !c.InitContainerMode {
+		if c.CheckInterval < time.Second {
+			result = multierror.Append(result, fmt.Errorf("check interval must be >= 1 second"))
+		}
 
-	if c.ShutdownTimeout < time.Second {
-		result = multierror.Append(result, fmt.Errorf("shutdown timeout must be >= 1 second"))
-	}
+		if c.ReadTimeout >= c.CheckInterval {
+			result = multierror.Append(result, fmt.Errorf("read timeout must be less than check interval (otherwise health checks would overlap or never complete before the next check)"))
+		}
 
-	if c.FailureThreshold < 1 {
-		result = multierror.Append(result, fmt.Errorf("failure threshold must be >= 1"))
-	}
+		if c.ShutdownTimeout < time.Second {
+			result = multierror.Append(result, fmt.Errorf("shutdown timeout must be >= 1 second"))
+		}
 
-	if c.HTTPPort < 1 || c.HTTPPort > 65535 {
-		result = multierror.Append(result, fmt.Errorf("HTTP port must be between 1 and 65535"))
+		if c.FailureThreshold < 1 {
+			result = multierror.Append(result, fmt.Errorf("failure threshold must be >= 1"))
+		}
+
+		if c.HTTPPort < 1 || c.HTTPPort > 65535 {
+			result = multierror.Append(result, fmt.Errorf("HTTP port must be between 1 and 65535"))
+		}
 	}
 
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
@@ -176,18 +187,20 @@ func (c *Config) Validate() error {
 		result = multierror.Append(result, fmt.Errorf("log format must be one of: json, text (got %q)", c.LogFormat))
 	}
 
-	// Validate watchdog configuration
-	if c.Watchdog.RestartDelay < 0 {
-		result = multierror.Append(result, fmt.Errorf("watchdog restart delay must be >= 0"))
-	}
-	if c.Watchdog.MaxRetries < 1 {
-		result = multierror.Append(result, fmt.Errorf("watchdog max retries must be >= 1"))
-	}
-	if c.Watchdog.RetryBackoffInitial <= 0 {
-		result = multierror.Append(result, fmt.Errorf("watchdog retry backoff initial must be > 0"))
-	}
-	if c.Watchdog.RetryBackoffMax < c.Watchdog.RetryBackoffInitial {
-		result = multierror.Append(result, fmt.Errorf("watchdog retry backoff max must be >= retry backoff initial"))
+	// Validate watchdog configuration (skip in init-container mode)
+	if !c.InitContainerMode {
+		if c.Watchdog.RestartDelay < 0 {
+			result = multierror.Append(result, fmt.Errorf("watchdog restart delay must be >= 0"))
+		}
+		if c.Watchdog.MaxRetries < 1 {
+			result = multierror.Append(result, fmt.Errorf("watchdog max retries must be >= 1"))
+		}
+		if c.Watchdog.RetryBackoffInitial <= 0 {
+			result = multierror.Append(result, fmt.Errorf("watchdog retry backoff initial must be > 0"))
+		}
+		if c.Watchdog.RetryBackoffMax < c.Watchdog.RetryBackoffInitial {
+			result = multierror.Append(result, fmt.Errorf("watchdog retry backoff max must be >= retry backoff initial"))
+		}
 	}
 
 	return result.ErrorOrNil()
