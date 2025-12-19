@@ -829,8 +829,8 @@ func TestTransientError(t *testing.T) {
 	err := &watchdog.TransientError{Message: "service unavailable", StatusCode: 503}
 
 	is.Equal(err.Error(), "service unavailable") // error message
-	is.True(err.IsTransient())                    // should be transient
-	is.Equal(err.StatusCode, 503)                 // status code
+	is.True(err.IsTransient())                   // should be transient
+	is.Equal(err.StatusCode, 503)                // status code
 }
 
 // TestWatchdog_ConcurrentMountStateChanges tests thread-safety of mount state changes.
@@ -962,5 +962,5 @@ func TestNewWatchdog(t *testing.T) {
 
 	state := wd.State()
 	is.Equal(state.State, watchdog.WatchdogDisabled) // initial state should be disabled
-	is.True(!wd.IsEnabled())                          // should not be enabled initially
+	is.True(!wd.IsEnabled())                         // should not be enabled initially
 }

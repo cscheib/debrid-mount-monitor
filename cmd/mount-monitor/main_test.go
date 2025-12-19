@@ -99,9 +99,9 @@ func TestMultiStreamHandler_Handle_Routing(t *testing.T) {
 
 	// Verify stdout got debug/info
 	stdoutContent := stdoutBuf.String()
-	is.True(strings.Contains(stdoutContent, "debug message")) // stdout should have debug
-	is.True(strings.Contains(stdoutContent, "info message"))  // stdout should have info
-	is.True(!strings.Contains(stdoutContent, "warn message")) // stdout should not have warn
+	is.True(strings.Contains(stdoutContent, "debug message"))  // stdout should have debug
+	is.True(strings.Contains(stdoutContent, "info message"))   // stdout should have info
+	is.True(!strings.Contains(stdoutContent, "warn message"))  // stdout should not have warn
 	is.True(!strings.Contains(stdoutContent, "error message")) // stdout should not have error
 
 	// Verify stderr got warn/error
@@ -126,8 +126,8 @@ func TestMultiStreamHandler_WithAttrs(t *testing.T) {
 	// WithAttrs should return a new handler
 	newHandler := handler.WithAttrs([]slog.Attr{slog.String("key", "value")})
 
-	is.True(newHandler != nil)      // should return handler
-	is.True(newHandler != handler)  // should be a new handler
+	is.True(newHandler != nil)     // should return handler
+	is.True(newHandler != handler) // should be a new handler
 }
 
 func TestMultiStreamHandler_WithGroup(t *testing.T) {
@@ -144,8 +144,8 @@ func TestMultiStreamHandler_WithGroup(t *testing.T) {
 	// WithGroup should return a new handler
 	newHandler := handler.WithGroup("mygroup")
 
-	is.True(newHandler != nil)      // should return handler
-	is.True(newHandler != handler)  // should be a new handler
+	is.True(newHandler != nil)     // should return handler
+	is.True(newHandler != handler) // should be a new handler
 }
 
 func TestRunInitMode_AllHealthy(t *testing.T) {

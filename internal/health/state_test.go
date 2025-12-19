@@ -332,8 +332,8 @@ func TestMount_GetLastCheck(t *testing.T) {
 
 	// Last check should now be set
 	lastCheck := mount.GetLastCheck()
-	is.True(!lastCheck.IsZero())                        // last check should be set
-	is.True(lastCheck.Sub(checkTime) < time.Second)     // should be close to check time
+	is.True(!lastCheck.IsZero())                    // last check should be set
+	is.True(lastCheck.Sub(checkTime) < time.Second) // should be close to check time
 }
 
 // TestMount_GetLastError tests the GetLastError method returns the last error.
@@ -357,6 +357,6 @@ func TestMount_GetLastError(t *testing.T) {
 
 	// Last error should now be set
 	lastErr := mount.GetLastError()
-	is.True(lastErr != nil)                             // error should be set
-	is.Equal(lastErr.Error(), "connection timeout")     // error message should match
+	is.True(lastErr != nil)                         // error should be set
+	is.Equal(lastErr.Error(), "connection timeout") // error message should match
 }

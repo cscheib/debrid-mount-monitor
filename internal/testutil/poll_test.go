@@ -56,7 +56,7 @@ func TestPollUntil_ExternalCondition(t *testing.T) {
 	})
 	elapsed := time.Since(start)
 
-	is.True(ready.Load())                     // Condition should be met
-	is.True(elapsed >= 50*time.Millisecond)   // Should wait for condition
-	is.True(elapsed < 500*time.Millisecond)   // Should not take too long
+	is.True(ready.Load())                   // Condition should be met
+	is.True(elapsed >= 50*time.Millisecond) // Should wait for condition
+	is.True(elapsed < 500*time.Millisecond) // Should not take too long
 }
