@@ -18,7 +18,7 @@ FROM alpine:3.19
 RUN apk add --no-cache ca-certificates curl
 
 # Copy binary
-COPY --from=builder /app/mount-monitor /mount-monitor
+COPY --from=builder --chmod=755 /app/mount-monitor /mount-monitor
 
 EXPOSE 8080
 

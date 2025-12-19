@@ -28,7 +28,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o mount-monitor ./cmd/mo
 FROM scratch
 
 # Copy binary from builder
-COPY --from=builder /app/mount-monitor /mount-monitor
+COPY --from=builder --chmod=755 /app/mount-monitor /mount-monitor
 
 # Expose health check port
 EXPOSE 8080
