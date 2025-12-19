@@ -9,6 +9,7 @@ This guide helps operators diagnose and resolve common issues with the mount hea
 - [Issue: RBAC Permission Errors](#issue-rbac-permission-errors)
 - [Issue: Missing POD_NAME/POD_NAMESPACE](#issue-missing-pod_namepod_namespace)
 - [Issue: Mount Never Detected as Unhealthy](#issue-mount-never-detected-as-unhealthy)
+- [Issue: Init Container Mode Problems](#issue-init-container-mode-problems)
 - [Advanced Troubleshooting](#advanced-troubleshooting)
   - [Enable Debug Logging](#enable-debug-logging)
   - [Check Kubernetes Events](#check-kubernetes-events)
@@ -265,6 +266,65 @@ spec:
      path: /mnt/your-mount
      canaryFile: ".your-custom-canary"  # Default is .health-check
    ```
+
+---
+
+## Issue: Init Container Mode Problems
+
+Init container mode (`--init-container-mode`) runs a one-shot health check and exits. See [quickstart guide](../specs/010-init-container-mode/quickstart.md) for full documentation.
+
+### Symptoms
+- Pod stuck in `Init:0/1` state
+- Init container exits with code 1
+- Pod keeps restarting at init phase
+
+### Diagnostics
+
+1. **Check init container logs**:
+   ```bash
+   kubectl -n <namespace> logs <pod-name> -c wait-for-mounts
+   ```
+
+2. **Check init container exit code**:
+   ```bash
+   kubectl -n <namespace> get pod <pod-name> -o jsonpath='{.status.initContainerStatuses[0].state}'
+   ```
+
+3. **Verify canary files exist**:
+   ```bash
+   # From another pod or node with mount access
+   ls -la /mnt/your-mount/.health-check
+   ```
+
+### Resolution
+
+1. **If logs show "mount check failed" with timeout**:
+   - Mount may be slow or unresponsive
+   - Increase `readTimeout` in config (e.g., `"readTimeout": "30s"`)
+
+2. **If logs show "no such file or directory"**:
+   - Canary file doesn't exist on the mount
+   - Create it: `echo "healthy" > /mnt/your-mount/.health-check`
+
+3. **If logs show "permission denied"**:
+   - Volume mount permissions issue
+   - Ensure init container has read access to the mount
+
+4. **If pod restarts repeatedly at init phase**:
+   - Mount is persistently unhealthy
+   - Check the underlying mount/storage service
+   - Kubernetes will retry with exponential backoff
+
+### Debug with text logging
+
+For easier reading during troubleshooting:
+```yaml
+args:
+  - --config=/etc/mount-monitor/config.json
+  - --init-container-mode
+  - --log-format=text
+  - --log-level=debug
+```
 
 ---
 

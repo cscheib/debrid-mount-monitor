@@ -7,6 +7,7 @@ A Kubernetes sidecar container that monitors the health of debrid WebDAV mount p
 - Canary file health checking with configurable timeout
 - Kubernetes-native liveness and readiness probes
 - Failure threshold logic to prevent flapping on transient failures
+- **Init container mode** for one-shot health gates (block pod startup until mounts are healthy)
 - Structured JSON logging
 - Multi-architecture support (AMD64/ARM64)
 - Minimal container image (<20MB)
@@ -79,6 +80,7 @@ Most configuration is done via the JSON config file. Only essential runtime flag
 | `--http-port` | HTTP server port (default: 8080) |
 | `--log-level` | Log level: debug, info, warn, error (default: info) |
 | `--log-format` | Log format: json, text (default: json) |
+| `--init-container-mode` | Run one-shot health check and exit (for Kubernetes init containers) |
 
 ## Security
 
@@ -181,6 +183,35 @@ spec:
     configMap:
       name: mount-monitor-config
 ```
+
+### Init Container Mode
+
+Use `--init-container-mode` to run a one-shot health check that gates pod startup. The monitor checks all mounts once and exits:
+- **Exit 0**: All mounts healthy → pod proceeds to main containers
+- **Exit 1**: Any mount unhealthy → pod startup blocked
+
+```yaml
+apiVersion: v1
+kind: Pod
+spec:
+  initContainers:
+    - name: wait-for-mounts
+      image: ghcr.io/cscheib/debrid-mount-monitor:latest
+      args:
+        - --config=/etc/mount-monitor/config.json
+        - --init-container-mode
+      volumeMounts:
+        - name: config
+          mountPath: /etc/mount-monitor
+        - name: debrid-mount
+          mountPath: /mnt/debrid
+  containers:
+    - name: plex
+      image: plexinc/pms-docker:latest
+      # ... main container starts only after init container succeeds
+```
+
+See [specs/010-init-container-mode/quickstart.md](specs/010-init-container-mode/quickstart.md) for complete documentation including configuration options and troubleshooting.
 
 ## Development
 

@@ -290,6 +290,51 @@ volumeMounts:
 
 ---
 
+### UC-11: Block Pod Startup Until Mounts Are Healthy
+
+**Personas:** Home Lab Enthusiast, Media Server Admin, DevOps Engineer
+**Feature:** Init Container Mode (`--init-container-mode`)
+
+**Scenario:**
+A Plex pod should not start until its debrid storage mounts are confirmed healthy. Starting Plex with broken mounts causes empty library scans, corrupted metadata, and poor user experience.
+
+**How debrid-mount-monitor helps:**
+1. Deploy mount-monitor as a Kubernetes init container with `--init-container-mode`
+2. Init container checks all configured mounts once
+3. If all mounts are healthy → exits with code 0 → pod proceeds to main containers
+4. If any mount is unhealthy → exits with code 1 → pod startup blocked
+5. Kubernetes retries init container with backoff until mounts recover
+
+**Configuration example:**
+```yaml
+apiVersion: v1
+kind: Pod
+spec:
+  initContainers:
+    - name: wait-for-mounts
+      image: ghcr.io/cscheib/debrid-mount-monitor:latest
+      args:
+        - --config=/etc/mount-monitor/config.json
+        - --init-container-mode
+      volumeMounts:
+        - name: config
+          mountPath: /etc/mount-monitor
+        - name: debrid-mount
+          mountPath: /mnt/debrid
+  containers:
+    - name: plex
+      image: plexinc/pms-docker:latest
+      volumeMounts:
+        - name: debrid-mount
+          mountPath: /mnt/debrid
+```
+
+**Value:** Prevents application corruption from broken mounts. Plex only starts when storage is ready.
+
+**See also:** [Init Container Mode Quickstart](../specs/010-init-container-mode/quickstart.md)
+
+---
+
 ## Use Case Status
 
 | Use Case | Business Value | Status |
@@ -304,6 +349,7 @@ volumeMounts:
 | UC-8: Local Dev | Medium | Complete |
 | UC-9: Minimal Footprint | Low | Complete |
 | UC-10: Flexible Config | Low | Complete |
+| UC-11: Init Container Gate | High | Complete |
 
 ---
 

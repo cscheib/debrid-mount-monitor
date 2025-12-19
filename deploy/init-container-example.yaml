@@ -1,0 +1,99 @@
+# Init Container Mode Example
+#
+# This example demonstrates using debrid-mount-monitor as a Kubernetes init container
+# to gate pod startup on mount health. The main application (Plex) only starts after
+# all configured mounts are verified healthy.
+#
+# Usage:
+#   kubectl apply -f init-container-example.yaml
+#
+# For more information, see:
+#   - specs/010-init-container-mode/quickstart.md
+#   - docs/use-cases.md (UC-11)
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: media
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mount-monitor-config
+  namespace: media
+data:
+  config.json: |
+    {
+      "mounts": [
+        {
+          "name": "movies",
+          "path": "/mnt/movies"
+        },
+        {
+          "name": "tv",
+          "path": "/mnt/tv"
+        }
+      ],
+      "canaryFile": ".health-check",
+      "readTimeout": "5s"
+    }
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: media-server
+  namespace: media
+  labels:
+    app: media-server
+spec:
+  # Init container runs first and gates main container startup
+  initContainers:
+    - name: wait-for-mounts
+      image: ghcr.io/cscheib/debrid-mount-monitor:latest
+      args:
+        - --config=/etc/mount-monitor/config.json
+        - --init-container-mode
+      volumeMounts:
+        - name: config
+          mountPath: /etc/mount-monitor
+          readOnly: true
+        - name: movies
+          mountPath: /mnt/movies
+          readOnly: true
+        - name: tv
+          mountPath: /mnt/tv
+          readOnly: true
+
+  # Main container only starts after init container exits successfully (code 0)
+  containers:
+    - name: plex
+      image: plexinc/pms-docker:latest
+      ports:
+        - containerPort: 32400
+          name: plex
+      volumeMounts:
+        - name: movies
+          mountPath: /mnt/movies
+          readOnly: true
+        - name: tv
+          mountPath: /mnt/tv
+          readOnly: true
+
+  volumes:
+    - name: config
+      configMap:
+        name: mount-monitor-config
+
+    # Replace these with your actual volume definitions
+    # Example: NFS, PVC, hostPath, etc.
+    - name: movies
+      emptyDir: {}  # Placeholder - replace with actual mount
+    - name: tv
+      emptyDir: {}  # Placeholder - replace with actual mount
+
+  # Restart policy for init container failures
+  # Pod will retry init container with exponential backoff
+  restartPolicy: Always
