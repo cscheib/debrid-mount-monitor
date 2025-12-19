@@ -28,10 +28,28 @@ build-all: build-linux-amd64 build-linux-arm64
 test:
 	go test -v ./...
 
-# Run tests with coverage
-test-coverage:
-	go test -v -coverprofile=coverage.out ./...
+# Run tests with race detection
+test-race:
+	go test -v -race ./...
+
+# Run tests with coverage (generates HTML report)
+test-cover:
+	go test -v -coverprofile=coverage.out -coverpkg=./internal/...,./cmd/... ./...
 	go tool cover -html=coverage.out -o coverage.html
+	@echo ""
+	@echo "Coverage report generated: coverage.html"
+	@go tool cover -func=coverage.out | tail -1
+
+# Run tests with race detection AND coverage
+test-all:
+	go test -v -race -coverprofile=coverage.out -coverpkg=./internal/...,./cmd/... ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo ""
+	@echo "Coverage report generated: coverage.html"
+	@go tool cover -func=coverage.out | tail -1
+
+# Legacy alias for test-cover (backward compatibility)
+test-coverage: test-cover
 
 # Run linter
 lint:
@@ -63,7 +81,9 @@ help:
 	@echo "  build-linux-arm64 - Build for Linux ARM64"
 	@echo "  build-all       - Build for all platforms"
 	@echo "  test            - Run tests"
-	@echo "  test-coverage   - Run tests with coverage report"
+	@echo "  test-race       - Run tests with race detection"
+	@echo "  test-cover      - Run tests with coverage report"
+	@echo "  test-all        - Run tests with race detection + coverage"
 	@echo "  lint            - Run linter"
 	@echo "  clean           - Remove build artifacts"
 	@echo "  docker          - Build Docker image"

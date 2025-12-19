@@ -5,15 +5,18 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/cscheib/debrid-mount-monitor/internal/health"
 	"github.com/cscheib/debrid-mount-monitor/internal/monitor"
 	"github.com/matryer/is"
+	"go.uber.org/goleak"
 )
 
 func TestMonitor_StartsAndStops(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	is := is.New(t)
 
 	tmpDir := t.TempDir()
@@ -41,6 +44,7 @@ func TestMonitor_StartsAndStops(t *testing.T) {
 }
 
 func TestMonitor_DetectsFailure(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	is := is.New(t)
 
 	tmpDir := t.TempDir()
@@ -65,6 +69,7 @@ func TestMonitor_DetectsFailure(t *testing.T) {
 }
 
 func TestMonitor_DetectsRecovery(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	is := is.New(t)
 
 	tmpDir := t.TempDir()
@@ -114,6 +119,7 @@ func pollForStatus(t *testing.T, mount *health.Mount, expected health.HealthStat
 }
 
 func TestMonitor_MultipleMount(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	is := is.New(t)
 
 	tmpDir1 := t.TempDir()
@@ -146,4 +152,90 @@ func TestMonitor_MultipleMount(t *testing.T) {
 
 	cancel()
 	mon.Wait()
+}
+
+// mockWatchdog implements WatchdogNotifier for testing.
+// Uses atomic operations to be safe for concurrent access during race tests.
+type mockWatchdog struct {
+	healthyCalls   atomic.Int32
+	unhealthyCalls atomic.Int32
+}
+
+func (m *mockWatchdog) OnMountHealthy(mountPath string)                     { m.healthyCalls.Add(1) }
+func (m *mockWatchdog) OnMountUnhealthy(mountPath string, failureCount int) { m.unhealthyCalls.Add(1) }
+
+// TestMonitor_SetWatchdog tests that SetWatchdog sets the watchdog notifier.
+// Note: OnMountHealthy is only called when recovering FROM unhealthy TO healthy,
+// not when initially becoming healthy from unknown state.
+func TestMonitor_SetWatchdog(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	is := is.New(t)
+
+	tmpDir := t.TempDir()
+	canaryPath := filepath.Join(tmpDir, ".health-check")
+	// Start without canary file - mount will be unhealthy
+
+	mount := health.NewMount("test-mount", tmpDir, ".health-check", 1) // threshold of 1 for quick transition
+	checker := health.NewChecker(100 * time.Millisecond)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	checkInterval := 50 * time.Millisecond
+	mon := monitor.New([]*health.Mount{mount}, checker, checkInterval, 1, logger)
+
+	// Set watchdog
+	watchdog := &mockWatchdog{}
+	mon.SetWatchdog(watchdog)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	mon.Start(ctx)
+
+	// Poll until mount becomes unhealthy (due to missing canary)
+	is.True(pollForStatus(t, mount, health.StatusUnhealthy, 5*time.Second, checkInterval))
+	is.True(watchdog.unhealthyCalls.Load() > 0) // watchdog should be notified of unhealthy
+
+	// Now create the canary file and wait for recovery
+	if err := os.WriteFile(canaryPath, []byte("ok"), 0644); err != nil {
+		t.Fatalf("failed to create canary file: %v", err)
+	}
+
+	// Poll until mount recovers to healthy
+	is.True(pollForStatus(t, mount, health.StatusHealthy, 5*time.Second, checkInterval))
+
+	cancel()
+	mon.Wait()
+
+	// Watchdog should have been notified of recovery
+	is.True(watchdog.healthyCalls.Load() > 0) // watchdog should be notified of recovery to healthy
+}
+
+// TestMonitor_WatchdogNotifiedOnStateChange tests that watchdog is notified on state changes.
+func TestMonitor_WatchdogNotifiedOnStateChange(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	is := is.New(t)
+
+	tmpDir := t.TempDir()
+	// Don't create canary file - mount should become unhealthy
+
+	mount := health.NewMount("fail-mount", tmpDir, ".health-check", 1) // threshold of 1
+	checker := health.NewChecker(100 * time.Millisecond)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	checkInterval := 50 * time.Millisecond
+	mon := monitor.New([]*health.Mount{mount}, checker, checkInterval, 1, logger)
+
+	// Set watchdog
+	watchdog := &mockWatchdog{}
+	mon.SetWatchdog(watchdog)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	mon.Start(ctx)
+
+	// Poll until mount becomes unhealthy
+	is.True(pollForStatus(t, mount, health.StatusUnhealthy, 5*time.Second, checkInterval))
+
+	cancel()
+	mon.Wait()
+
+	// Watchdog should have been notified of unhealthy state
+	is.True(watchdog.unhealthyCalls.Load() > 0) // watchdog should be notified of unhealthy mount
 }

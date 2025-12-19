@@ -18,6 +18,8 @@ Auto-generated from all feature plans. Last updated: 2025-12-14
 - YAML (GitHub Actions), Dockerfile + docker buildx, actions/download-artifact@v6, actions/checkout@v6 (sparse) (009-docker-prebuilt-binaries)
 - Go 1.21+ (required for log/slog structured logging) + Standard library only + existing approved dependencies (pflag, go-multierror) (010-init-container-mode)
 - N/A (read-only canary file checks) (010-init-container-mode)
+- Go 1.21+ (required for log/slog structured logging) + Standard library + goleak (test-only, zero transitive deps) (011-testing-improvements)
+- N/A (testing infrastructure, no persistent storage) (011-testing-improvements)
 
 - Go 1.21+ (required for log/slog structured logging) + Standard library only (net/http, os/signal, context, log/slog, encoding/json, time, sync) (001-mount-health-monitor)
 
@@ -37,9 +39,9 @@ tests/
 Go 1.21+ (required for log/slog structured logging): Follow standard conventions
 
 ## Recent Changes
+- 011-testing-improvements: Added Go 1.21+ (required for log/slog structured logging) + Standard library + goleak (test-only, zero transitive deps)
 - 010-init-container-mode: Added Go 1.21+ (required for log/slog structured logging) + Standard library only + existing approved dependencies (pflag, go-multierror)
 - 009-docker-prebuilt-binaries: Added YAML (GitHub Actions), Dockerfile + docker buildx, actions/download-artifact@v6, actions/checkout@v6 (sparse)
-- 008-automate-releases: Added YAML (GitHub Actions workflow), Go 1.21+ (existing project) + GitHub Actions (actions/checkout@v6, actions/setup-go@v6, docker/build-push-action@v6, softprops/action-gh-release)
 
 
 <!-- MANUAL ADDITIONS START -->
@@ -50,4 +52,5 @@ This project uses minimal external dependencies:
 - **github.com/spf13/pflag** - Drop-in replacement for Go's `flag` package that enforces POSIX/GNU flag conventions (single dash for short flags like `-c`, double dash for long flags like `--config`)
 - **github.com/matryer/is** - Minimalist testing assertions library (zero transitive dependencies, test-only)
 - **github.com/hashicorp/go-multierror** - Multi-error collection for config validation (preserves individual errors)
+- **go.uber.org/goleak** - Goroutine leak detection for tests (zero transitive deps in practice, test-only)
 <!-- MANUAL ADDITIONS END -->
