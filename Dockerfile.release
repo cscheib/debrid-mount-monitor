@@ -21,7 +21,7 @@ ARG TARGETARCH
 
 # Copy the pre-built binary for the target architecture
 # The binary name must match: mount-monitor-linux-{TARGETARCH}
-COPY mount-monitor-linux-${TARGETARCH} /mount-monitor
+COPY --chmod=755 mount-monitor-linux-${TARGETARCH} /mount-monitor
 
 # Health check port (same as production Dockerfile)
 EXPOSE 8080
