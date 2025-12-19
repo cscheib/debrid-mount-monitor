@@ -188,10 +188,10 @@ jobs:
           max_attempts: 3
           retry_wait_seconds: 30
           command: |
-            # Build tags list
-            TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.VERSION }}"
+            # Build tags with separate --tag flags
+            TAGS="--tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.VERSION }}"
             if [ "${{ steps.meta.outputs.IS_PRERELEASE }}" == "false" ]; then
-              TAGS="${TAGS},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+              TAGS="${TAGS} --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
             fi
 
             # Build from docker-context directory using Dockerfile.release
@@ -199,7 +199,7 @@ jobs:
             docker buildx build \
               --platform linux/amd64,linux/arm64 \
               --push \
-              --tag ${TAGS} \
+              ${TAGS} \
               --file ./docker-context/Dockerfile.release \
               ./docker-context/
 
