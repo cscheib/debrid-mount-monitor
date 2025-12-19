@@ -7,6 +7,7 @@ A Kubernetes sidecar container that monitors the health of debrid WebDAV mount p
 - Canary file health checking with configurable timeout
 - Kubernetes-native liveness and readiness probes
 - Failure threshold logic to prevent flapping on transient failures
+- **Pod restart watchdog** for automatic recovery when mounts become unhealthy
 - **Init container mode** for one-shot health gates (block pod startup until mounts are healthy)
 - Structured JSON logging
 - Multi-architecture support (AMD64/ARM64)
@@ -48,7 +49,12 @@ Create a `config.json` file in your working directory or specify a path with `--
       "name": "local-data",
       "path": "./data/local"
     }
-  ]
+  ],
+  "watchdog": {
+    "enabled": true,
+    "restartDelay": "0s",
+    "maxRetries": 3
+  }
 }
 ```
 
@@ -106,7 +112,7 @@ The monitor will log a **warning** if the config file is world-writable (`chmod 
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /healthz/live` | Liveness probe - always returns 200 if service is running |
+| `GET /healthz/live` | Liveness probe - returns 200 unless any mount is UNHEALTHY, 503 otherwise |
 | `GET /healthz/ready` | Readiness probe - returns 200 if all mounts healthy, 503 otherwise |
 | `GET /healthz/status` | Detailed status of all monitored mounts |
 
@@ -133,7 +139,7 @@ docker run -v /mnt/debrid:/mnt/debrid:ro \
 
 ### Kubernetes
 
-Deploy with a ConfigMap for configuration:
+Deploy with a ConfigMap for configuration. For basic monitoring without watchdog:
 
 ```yaml
 apiVersion: v1
@@ -184,6 +190,8 @@ spec:
       name: mount-monitor-config
 ```
 
+For watchdog mode (automatic pod restart), see the [Watchdog Mode](#watchdog-mode) section below.
+
 ### Init Container Mode
 
 Use `--init-container-mode` to run a one-shot health check that gates pod startup. The monitor checks all mounts once and exits:
@@ -212,6 +220,102 @@ spec:
 ```
 
 See [specs/010-init-container-mode/quickstart.md](specs/010-init-container-mode/quickstart.md) for complete documentation including configuration options and troubleshooting.
+
+### Watchdog Mode
+
+Enable watchdog mode for automatic pod restarts when mounts become unhealthy. When a mount fails health checks beyond the failure threshold, the watchdog deletes the pod via the Kubernetes API, triggering a fresh restart with new mount connections.
+
+**When to use watchdog:**
+- Your mounts can become stale and require pod restart to recover
+- You want automatic recovery without manual intervention
+- You're running in Kubernetes and can configure RBAC
+
+**Configuration:**
+
+```json
+{
+  "mounts": [{"name": "debrid", "path": "/mnt/debrid"}],
+  "watchdog": {
+    "enabled": true,
+    "restartDelay": "0s",
+    "maxRetries": 3
+  }
+}
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `enabled` | Enable watchdog functionality | `false` |
+| `restartDelay` | Delay after mount becomes UNHEALTHY before restart | `0s` |
+| `maxRetries` | API retry attempts for pod deletion | `3` |
+
+**Required RBAC resources:**
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mount-monitor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: mount-monitor
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "delete"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mount-monitor
+subjects:
+- kind: ServiceAccount
+  name: mount-monitor
+roleRef:
+  kind: Role
+  name: mount-monitor
+  apiGroup: rbac.authorization.k8s.io
+```
+
+**Pod configuration with watchdog:**
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-app
+spec:
+  serviceAccountName: mount-monitor
+  containers:
+  - name: mount-monitor
+    image: ghcr.io/cscheib/debrid-mount-monitor:latest
+    args:
+    - --config=/app/config.json
+    env:
+    - name: POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: POD_NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
+    # ... volume mounts and probes as shown above
+```
+
+**State machine:**
+1. **HEALTHY** → Mount checks passing
+2. **DEGRADED** → Some failures, below threshold
+3. **UNHEALTHY** → Failures exceed threshold → watchdog triggers restart
+
+The watchdog gracefully degrades if RBAC permissions are missing or when running outside Kubernetes.
+
+See [docs/troubleshooting.md](docs/troubleshooting.md) for watchdog diagnostics and common issues.
 
 ## Development
 
