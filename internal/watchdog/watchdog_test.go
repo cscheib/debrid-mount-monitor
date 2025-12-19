@@ -14,6 +14,27 @@ import (
 	"go.uber.org/goleak"
 )
 
+// Timer Goroutine Pattern (goleak.IgnoreTopFunction)
+//
+// The watchdog's OnMountUnhealthy() spawns a timer goroutine that waits for
+// RestartDelay before triggering a pod restart. This is intentional:
+//
+//   - time.AfterFunc() creates a goroutine that calls triggerRestart() after delay
+//   - The goroutine is stored in pendingRestart and can be cancelled via Stop()
+//   - In tests, even after the timer fires, there's a brief window where the
+//     goroutine stack shows as "OnMountUnhealthy.func1"
+//
+// We use goleak.IgnoreTopFunction() for tests involving restart delays because:
+//
+//   1. The timer goroutine lifecycle is correct - it does exit after completion
+//   2. The goroutine is NOT leaked - it's just still winding down at test end
+//   3. Sleeping longer to wait for cleanup would slow tests unnecessarily
+//
+// This is safe to ignore because:
+//   - The timer either fires (and exits) or is cancelled via Stop() (and exits)
+//   - No resources are leaked; the goroutine has no external references
+//   - Production code correctly manages the timer via pendingRestart field
+
 // testLogger returns a silent logger for testing.
 func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))

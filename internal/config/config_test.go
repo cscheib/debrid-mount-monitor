@@ -6,6 +6,7 @@ import (
 
 	"github.com/cscheib/debrid-mount-monitor/internal/config"
 	"github.com/matryer/is"
+	"go.uber.org/goleak"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -22,6 +23,7 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestConfigValidation_Valid(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	is := is.New(t)
 
 	cfg := &config.Config{
@@ -237,6 +239,28 @@ func TestConfigValidation_NamedMountNegativeThreshold(t *testing.T) {
 
 	err := cfg.Validate()
 	is.True(err != nil) // named mount with negative failure threshold should error
+}
+
+// TestConfigValidation_MountEmptyCanaryFile tests that mount with empty canary inherits global default
+func TestConfigValidation_MountEmptyCanaryFile(t *testing.T) {
+	is := is.New(t)
+
+	cfg := config.DefaultConfig()
+	cfg.Mounts = []config.MountConfig{{Path: "/mnt/test", CanaryFile: ""}} // Empty canary - should use global
+
+	err := cfg.Validate()
+	is.NoErr(err) // empty canary file should be valid (inherits global default)
+}
+
+// TestConfigValidation_MountZeroThreshold tests that mount with threshold=0 is valid (uses global default)
+func TestConfigValidation_MountZeroThreshold(t *testing.T) {
+	is := is.New(t)
+
+	cfg := config.DefaultConfig()
+	cfg.Mounts = []config.MountConfig{{Path: "/mnt/test", FailureThreshold: 0}} // Zero = use global
+
+	err := cfg.Validate()
+	is.NoErr(err) // threshold=0 should be valid (sentinel for "use global default")
 }
 
 // T004: Test that InitContainerMode field exists and defaults to false

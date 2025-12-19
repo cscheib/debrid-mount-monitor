@@ -28,11 +28,18 @@ func PollUntil(t *testing.T, timeout time.Duration, condition func() bool) {
 			return
 		}
 
-		if time.Now().After(deadline) {
+		// Check remaining time before sleeping
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
 			t.Fatalf("condition not met within %v timeout", timeout)
 		}
 
-		time.Sleep(interval)
+		// Don't sleep longer than remaining time
+		sleepDuration := interval
+		if sleepDuration > remaining {
+			sleepDuration = remaining
+		}
+		time.Sleep(sleepDuration)
 
 		// Exponential backoff up to maxInterval
 		interval = interval * 2
