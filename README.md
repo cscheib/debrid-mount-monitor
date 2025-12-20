@@ -108,6 +108,40 @@ chmod 640 config.json
 
 The monitor will log a **warning** if the config file is world-writable (`chmod 666` or similar), as this could allow unauthorized modification. This check only runs on Unix systems (Linux, macOS).
 
+### Container User ID
+
+The container runs as UID **65534** (`nobody`) by default—a standard non-privileged user suitable for scratch-based images. If your mounted volumes are owned by a different user, the monitor may fail to read the canary file with "permission denied" errors.
+
+**Override at runtime (no rebuild required):**
+
+**Docker:**
+```bash
+docker run --user 1000:1000 \
+  -v /mnt/debrid:/mnt/debrid:ro \
+  mount-monitor:latest
+```
+
+**Kubernetes:**
+```yaml
+spec:
+  containers:
+    - name: mount-monitor
+      image: ghcr.io/cscheib/debrid-mount-monitor:latest
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+```
+
+**Finding the correct UID/GID:**
+```bash
+# Check ownership of your mounted volume
+ls -n /mnt/your-mount
+# Output: drwxr-xr-x 2 1000 1000 4096 Dec 20 10:00 .
+#                     ^^^^-^^^^-- Use these values
+```
+
+See [docs/troubleshooting.md](docs/troubleshooting.md) for diagnosing permission-related health check failures.
+
 ## Endpoints
 
 | Endpoint | Description |
