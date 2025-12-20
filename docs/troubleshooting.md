@@ -9,6 +9,7 @@ This guide helps operators diagnose and resolve common issues with the mount hea
 - [Issue: RBAC Permission Errors](#issue-rbac-permission-errors)
 - [Issue: Missing POD_NAME/POD_NAMESPACE](#issue-missing-pod_namepod_namespace)
 - [Issue: Mount Never Detected as Unhealthy](#issue-mount-never-detected-as-unhealthy)
+- [Issue: Permission Denied on Canary File](#issue-permission-denied-on-canary-file)
 - [Issue: Init Container Mode Problems](#issue-init-container-mode-problems)
 - [Advanced Troubleshooting](#advanced-troubleshooting)
   - [Enable Debug Logging](#enable-debug-logging)
@@ -266,6 +267,66 @@ spec:
      path: /mnt/your-mount
      canaryFile: ".your-custom-canary"  # Default is .health-check
    ```
+
+---
+
+## Issue: Permission Denied on Canary File
+
+### Symptoms
+- Health checks consistently fail with "permission denied" errors
+- Logs show: `open /mnt/your-mount/.health-check: permission denied`
+- Mount is accessible from other containers but not from mount-monitor
+- `/healthz/ready` always returns 503
+
+### Diagnostics
+
+1. **Check the container's running UID**:
+   ```bash
+   kubectl -n <namespace> exec <pod-name> -c mount-monitor -- id
+   # Expected output: uid=65534 gid=65534 groups=65534
+   ```
+
+2. **Check the mount's ownership**:
+   ```bash
+   kubectl -n <namespace> exec <pod-name> -c mount-monitor -- ls -n /mnt/your-mount
+   # Look at the UID:GID columns (3rd and 4th)
+   ```
+
+3. **Compare UIDs**:
+   - If container runs as UID 65534 but mount is owned by UID 1000, that's a mismatch
+   - The canary file must be readable by the container's UID
+
+### Resolution
+
+**Kubernetes** - Override the container's UID to match the mount owner:
+
+```yaml
+spec:
+  containers:
+    - name: mount-monitor
+      image: ghcr.io/cscheib/debrid-mount-monitor:latest
+      securityContext:
+        runAsUser: 1000    # Match your mount's owner UID
+        runAsGroup: 1000   # Match your mount's owner GID
+```
+
+**Docker** - Use the `--user` flag:
+
+```bash
+docker run --user 1000:1000 \
+  -v /mnt/debrid:/mnt/debrid:ro \
+  mount-monitor:latest
+```
+
+**Finding the correct values**:
+```bash
+# On the host or from a container that can read the mount
+ls -n /mnt/your-mount
+# Output: drwxr-xr-x 2 1000 1000 4096 Dec 20 10:00 .
+#                     ^^^^-^^^^-- UID and GID to use
+```
+
+See [Container User ID](../README.md#container-user-id) in the README for more details.
 
 ---
 
