@@ -84,6 +84,12 @@
           "description": "Canary file path relative to this mount (overrides global default)",
           "examples": [".health-check", ".ready", "health.txt"]
         },
+        "checkType": {
+          "type": "string",
+          "description": "Health check type for this mount",
+          "enum": ["canary", "directory"],
+          "default": "canary"
+        },
         "failureThreshold": {
           "type": "integer",
           "description": "Consecutive failures before marking this mount unhealthy (overrides global default)",

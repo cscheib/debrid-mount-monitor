@@ -14,6 +14,7 @@ type MountConfig struct {
 	Name             string // Human-readable identifier (optional)
 	Path             string // Filesystem path to mount point (required) - can be absolute or relative
 	CanaryFile       string // Relative path to canary file within mount (optional, inherits global)
+	CheckType        string // Health check type: "canary" or "directory" (optional, defaults to canary)
 	FailureThreshold int    // Consecutive failures before unhealthy (0 = use global failureThreshold)
 }
 
@@ -145,6 +146,13 @@ func (c *Config) Validate() error {
 				result = multierror.Append(result, fmt.Errorf("mount[%d] %q: failureThreshold must be >= 0", i, m.Name))
 			} else {
 				result = multierror.Append(result, fmt.Errorf("mount[%d]: failureThreshold must be >= 0", i))
+			}
+		}
+		if m.CheckType != "" && m.CheckType != "canary" && m.CheckType != "directory" {
+			if m.Name != "" {
+				result = multierror.Append(result, fmt.Errorf("mount[%d] %q: checkType must be one of: canary, directory (got %q)", i, m.Name, m.CheckType))
+			} else {
+				result = multierror.Append(result, fmt.Errorf("mount[%d]: checkType must be one of: canary, directory (got %q)", i, m.CheckType))
 			}
 		}
 	}

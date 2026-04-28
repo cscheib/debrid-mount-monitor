@@ -21,6 +21,11 @@ const (
 	StatusUnhealthy
 )
 
+const (
+	CheckTypeCanary    = "canary"
+	CheckTypeDirectory = "directory"
+)
+
 // String returns the string representation of the health status.
 func (s HealthStatus) String() string {
 	switch s {
@@ -42,6 +47,7 @@ type Mount struct {
 	Name             string       // Human-readable identifier (optional)
 	Path             string       // Absolute path to mount point
 	CanaryPath       string       // Full path to canary file
+	CheckType        string       // Type of health check to perform
 	FailureThreshold int          // Consecutive failures before unhealthy (per-mount)
 	Status           HealthStatus // Current health status
 	LastCheck        time.Time    // Timestamp of last health check
@@ -57,14 +63,27 @@ type Mount struct {
 //   - canaryFile: Relative path to canary file within mount
 //   - failureThreshold: Consecutive failures before marking unhealthy
 func NewMount(name, path, canaryFile string, failureThreshold int) *Mount {
-	canaryPath := path
-	if canaryFile != "" {
-		canaryPath = filepath.Join(path, canaryFile)
+	return NewMountWithCheckType(name, path, canaryFile, CheckTypeCanary, failureThreshold)
+}
+
+// NewMountWithCheckType creates a new Mount instance with an explicit check type.
+func NewMountWithCheckType(name, path, canaryFile, checkType string, failureThreshold int) *Mount {
+	if checkType == "" {
+		checkType = CheckTypeCanary
+	}
+
+	canaryPath := ""
+	if checkType == CheckTypeCanary {
+		canaryPath = path
+		if canaryFile != "" {
+			canaryPath = filepath.Join(path, canaryFile)
+		}
 	}
 	return &Mount{
 		Name:             name,
 		Path:             path,
 		CanaryPath:       canaryPath,
+		CheckType:        checkType,
 		FailureThreshold: failureThreshold,
 		Status:           StatusUnknown,
 	}

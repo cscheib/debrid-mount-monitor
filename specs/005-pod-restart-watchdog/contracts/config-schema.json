@@ -69,6 +69,12 @@
             "type": "string",
             "description": "Override canary file for this mount"
           },
+          "checkType": {
+            "type": "string",
+            "description": "Health check type for this mount",
+            "enum": ["canary", "directory"],
+            "default": "canary"
+          },
           "failureThreshold": {
             "type": "integer",
             "description": "Override failure threshold for this mount",

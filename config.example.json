@@ -17,6 +17,7 @@
     {
       "name": "tv",
       "path": "/mnt/tv",
+      "checkType": "directory",
       "failureThreshold": 5
     }
   ]

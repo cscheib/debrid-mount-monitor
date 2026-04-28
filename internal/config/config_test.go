@@ -263,6 +263,35 @@ func TestConfigValidation_MountZeroThreshold(t *testing.T) {
 	is.NoErr(err) // threshold=0 should be valid (sentinel for "use global default")
 }
 
+func TestConfigValidation_MountCheckType(t *testing.T) {
+	tests := []struct {
+		name      string
+		checkType string
+		wantErr   bool
+	}{
+		{"default", "", false},
+		{"canary", "canary", false},
+		{"directory", "directory", false},
+		{"invalid", "http", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is := is.New(t)
+
+			cfg := config.DefaultConfig()
+			cfg.Mounts = []config.MountConfig{{Path: "/mnt/test", CheckType: tt.checkType}}
+
+			err := cfg.Validate()
+			if tt.wantErr {
+				is.True(err != nil) // invalid checkType should error
+			} else {
+				is.NoErr(err) // valid checkType should pass
+			}
+		})
+	}
+}
+
 // T004: Test that InitContainerMode field exists and defaults to false
 func TestDefaultConfig_InitContainerMode(t *testing.T) {
 	is := is.New(t)

@@ -123,3 +123,46 @@ func TestChecker_EmptyCanaryFile(t *testing.T) {
 
 	is.True(result.Success) // empty canary file should be healthy
 }
+
+func TestChecker_DirectoryCheck_ExistingDirectory(t *testing.T) {
+	is := is.New(t)
+
+	tmpDir := t.TempDir()
+	mount := health.NewMountWithCheckType("", tmpDir, "", health.CheckTypeDirectory, 3)
+	checker := health.NewChecker(5 * time.Second)
+
+	result := checker.Check(context.Background(), mount)
+
+	is.True(result.Success) // existing directory should be healthy
+	is.NoErr(result.Error)  // no error expected
+}
+
+func TestChecker_DirectoryCheck_MissingDirectory(t *testing.T) {
+	is := is.New(t)
+
+	mount := health.NewMountWithCheckType("", "/nonexistent/path/that/does/not/exist", "", health.CheckTypeDirectory, 3)
+	checker := health.NewChecker(5 * time.Second)
+
+	result := checker.Check(context.Background(), mount)
+
+	is.True(!result.Success)     // missing directory should fail
+	is.True(result.Error != nil) // error expected
+}
+
+func TestChecker_DirectoryCheck_FilePath(t *testing.T) {
+	is := is.New(t)
+
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "not-a-directory")
+	if err := os.WriteFile(filePath, []byte("ok"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	mount := health.NewMountWithCheckType("", filePath, "", health.CheckTypeDirectory, 3)
+	checker := health.NewChecker(5 * time.Second)
+
+	result := checker.Check(context.Background(), mount)
+
+	is.True(!result.Success)     // file path should fail directory check
+	is.True(result.Error != nil) // error expected
+}

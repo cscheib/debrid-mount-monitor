@@ -43,6 +43,7 @@ Create a `config.json` file in your working directory or specify a path with `--
     {
       "name": "tv",
       "path": "/mnt/tv",
+      "checkType": "directory",
       "failureThreshold": 5
     },
     {
@@ -63,6 +64,7 @@ Create a `config.json` file in your working directory or specify a path with `--
 Each mount can override global settings:
 - `name`: Human-readable identifier (shown in logs and status)
 - `path`: Filesystem path to mount point (required) - can be absolute or relative
+- `checkType`: Health check type: `canary` (default) reads a canary file; `directory` checks that `path` exists and is a directory
 - `canaryFile`: Override global canary file for this mount (always relative to mount path)
 - `failureThreshold`: Override global failure threshold for this mount
 
@@ -75,6 +77,8 @@ Each mount can override global settings:
 Relative paths are resolved from the working directory where the monitor runs.
 
 **Canary Files:** Canary file paths are always relative to their respective mount path. For example, with a mount at `/mnt/movies` and canary file `.health-check`, the full canary path is `/mnt/movies/.health-check`.
+
+**Directory Checks:** Set `checkType` to `directory` when the mounted source does not expose a stable canary file. Directory checks verify that the configured `path` exists and is a directory. This is useful for virtual mounts such as Decypharr WebDAV/rclone paths, but it is a weaker signal than reading a file because it does not prove file reads from the mount are healthy.
 
 ### CLI Flags
 
