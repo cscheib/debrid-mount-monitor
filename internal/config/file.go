@@ -65,6 +65,7 @@ type FileMountConfig struct {
 	Name             string `json:"name,omitempty"`
 	Path             string `json:"path"`
 	CanaryFile       string `json:"canaryFile,omitempty"`
+	CheckType        string `json:"checkType,omitempty"`
 	FailureThreshold int    `json:"failureThreshold,omitempty"` // 0 = use global default, >= 1 = explicit value
 }
 
@@ -160,6 +161,12 @@ func validateFileConfig(fc *FileConfig) error {
 			}
 			return fmt.Errorf("mount[%d]: failureThreshold must be >= 0, got %d", i, m.FailureThreshold)
 		}
+		if m.CheckType != "" && m.CheckType != "canary" && m.CheckType != "directory" {
+			if m.Name != "" {
+				return fmt.Errorf("mount[%d] %q: checkType must be one of: canary, directory, got %q", i, m.Name, m.CheckType)
+			}
+			return fmt.Errorf("mount[%d]: checkType must be one of: canary, directory, got %q", i, m.CheckType)
+		}
 	}
 
 	return nil
@@ -201,8 +208,12 @@ func applyFileConfig(c *Config, fc *FileConfig) {
 		for i, fm := range fc.Mounts {
 			// Apply per-mount config with inheritance from globals
 			mc := MountConfig{
-				Name: fm.Name,
-				Path: fm.Path,
+				Name:      fm.Name,
+				Path:      fm.Path,
+				CheckType: fm.CheckType,
+			}
+			if mc.CheckType == "" {
+				mc.CheckType = "canary"
 			}
 
 			// Inherit canary file from global if not specified

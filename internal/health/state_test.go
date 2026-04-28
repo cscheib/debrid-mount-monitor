@@ -18,9 +18,22 @@ func TestNewMount(t *testing.T) {
 	is.Equal(mount.Name, "test-mount")                    // name
 	is.Equal(mount.Path, "/mnt/test")                     // path
 	is.Equal(mount.CanaryPath, "/mnt/test/.health-check") // canary path
+	is.Equal(mount.CheckType, health.CheckTypeCanary)     // default check type
 	is.Equal(mount.FailureThreshold, 3)                   // failure threshold
 	is.Equal(mount.GetStatus(), health.StatusUnknown)     // initial status
 	is.Equal(mount.GetFailureCount(), 0)                  // initial failure count
+}
+
+func TestNewMountWithCheckType_Directory(t *testing.T) {
+	is := is.New(t)
+
+	mount := health.NewMountWithCheckType("test-mount", "/mnt/test", "", health.CheckTypeDirectory, 3)
+
+	is.Equal(mount.Path, "/mnt/test")                    // path
+	is.Equal(mount.CanaryPath, "")                       // no canary path for directory check
+	is.Equal(mount.CheckType, health.CheckTypeDirectory) // check type
+	is.Equal(mount.FailureThreshold, 3)                  // failure threshold
+	is.Equal(mount.GetStatus(), health.StatusUnknown)    // initial status
 }
 
 func TestNewMount_TrailingSlash(t *testing.T) {

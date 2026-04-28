@@ -35,11 +35,12 @@ func TestConfigFile_ValidJSON(t *testing.T) {
 				"canaryFile": ".health-check",
 				"failureThreshold": 3
 			},
-			{
-				"name": "tv",
-				"path": "/mnt/tv",
-				"failureThreshold": 5
-			}
+				{
+					"name": "tv",
+					"path": "/mnt/tv",
+					"checkType": "directory",
+					"failureThreshold": 5
+				}
 		]
 	}`
 
@@ -71,6 +72,7 @@ func TestConfigFile_ValidJSON(t *testing.T) {
 	is.Equal(cfg.Mounts[0].FailureThreshold, 3)         // mount[0].failureThreshold
 	is.Equal(cfg.Mounts[1].Name, "tv")                  // mount[1].name
 	is.Equal(cfg.Mounts[1].Path, "/mnt/tv")             // mount[1].path
+	is.Equal(cfg.Mounts[1].CheckType, "directory")      // mount[1].checkType
 
 	// Verify ConfigFile is set
 	is.Equal(cfg.ConfigFile, configPath) // ConfigFile
@@ -229,6 +231,52 @@ func TestConfigFile_PerMountCanaryOverride(t *testing.T) {
 
 	// Mount without override should inherit global canary file
 	is.Equal(cfg.Mounts[1].CanaryFile, ".global-health") // mount[1] inherited canary
+}
+
+func TestConfigFile_DefaultCheckType(t *testing.T) {
+	is := is.New(t)
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	configJSON := `{
+		"mounts": [
+			{"path": "/mnt/test"}
+		]
+	}`
+
+	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	if err := cfg.LoadFromFileForTesting(configPath); err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	is.Equal(cfg.Mounts[0].CheckType, "canary") // default checkType
+}
+
+func TestConfigFile_InvalidCheckType(t *testing.T) {
+	is := is.New(t)
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	configJSON := `{
+		"mounts": [
+			{"path": "/mnt/test", "checkType": "http"}
+		]
+	}`
+
+	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	err := cfg.LoadFromFileForTesting(configPath)
+
+	is.True(err != nil) // invalid checkType should error
 }
 
 // T021: Test per-mount failureThreshold override

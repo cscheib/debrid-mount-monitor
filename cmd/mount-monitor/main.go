@@ -64,13 +64,17 @@ func main() {
 	// Create mounts from configuration
 	mounts := make([]*health.Mount, len(cfg.Mounts))
 	for i, mc := range cfg.Mounts {
-		mounts[i] = health.NewMount(mc.Name, mc.Path, mc.CanaryFile, mc.FailureThreshold)
-		logger.Info("mount registered",
+		mounts[i] = health.NewMountWithCheckType(mc.Name, mc.Path, mc.CanaryFile, mc.CheckType, mc.FailureThreshold)
+		attrs := []any{
 			"name", mc.Name,
 			"path", mc.Path,
-			"canary", mounts[i].CanaryPath,
+			"check_type", mounts[i].CheckType,
 			"failureThreshold", mc.FailureThreshold,
-		)
+		}
+		if mounts[i].CheckType == health.CheckTypeCanary {
+			attrs = append(attrs, "canary", mounts[i].CanaryPath)
+		}
+		logger.Info("mount registered", attrs...)
 	}
 
 	// Create health checker
@@ -245,7 +249,7 @@ func runInitMode(cfg *config.Config, logger *slog.Logger) int {
 	// Create mounts from configuration
 	mounts := make([]*health.Mount, len(cfg.Mounts))
 	for i, mc := range cfg.Mounts {
-		mounts[i] = health.NewMount(mc.Name, mc.Path, mc.CanaryFile, mc.FailureThreshold)
+		mounts[i] = health.NewMountWithCheckType(mc.Name, mc.Path, mc.CanaryFile, mc.CheckType, mc.FailureThreshold)
 	}
 
 	// Create health checker

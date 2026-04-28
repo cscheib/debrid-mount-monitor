@@ -2,6 +2,7 @@ package health
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 )
@@ -44,8 +45,7 @@ func (c *Checker) Check(ctx context.Context, mount *Mount) *CheckResult {
 	// 3. Alternative approaches (goroutine pools) add complexity without solving the root cause
 	done := make(chan error, 1)
 	go func() {
-		_, err := os.ReadFile(mount.CanaryPath)
-		done <- err
+		done <- checkMount(mount)
 	}()
 
 	// Wait for either completion or context cancellation
@@ -65,4 +65,23 @@ func (c *Checker) Check(ctx context.Context, mount *Mount) *CheckResult {
 	}
 
 	return result
+}
+
+func checkMount(mount *Mount) error {
+	switch mount.CheckType {
+	case "", CheckTypeCanary:
+		_, err := os.ReadFile(mount.CanaryPath)
+		return err
+	case CheckTypeDirectory:
+		info, err := os.Stat(mount.Path)
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("path is not a directory: %s", mount.Path)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported check type %q", mount.CheckType)
+	}
 }
